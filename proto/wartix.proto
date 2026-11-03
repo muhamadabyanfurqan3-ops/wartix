@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package wartix;
+
+// Layanan reservasi tiket bioskop Wartix multi-jam tayang
+service LayananWartix {
+  // RPC utama pemesanan kursi bioskop berdasarkan jam tayang & studio
+  rpc PesanKursi (PesanKursiRequest) returns (PesanKursiResponse);
+
+  // RPC melihat denah dan ketersediaan kursi pada jam tayang tertentu
+  rpc GetJadwalStudio (JadwalRequest) returns (JadwalResponse);
+
+  // RPC pengecekan status satu kursi pada jadwal tertentu
+  rpc GetStatusKursi (KursiRequest) returns (KursiStatusResponse);
+
+  // RPC konfirmasi pembayaran kursi yang sedang di-hold
+  rpc KonfirmasiPembayaran (BayarRequest) returns (KonfirmasiResponse);
+}
+
+// Request untuk pesan kursi
+message PesanKursiRequest {
+  string request_id = 1; // UUIDv4 untuk deduplikasi At-Most-Once
+  string jadwal_id = 2;  // ID Jam Tayang & Studio (misal: "SHOW_1300_ST1")
+  string kursi_id = 3;   // Contoh: "A1", "B5"
+  string user_id = 4;    // ID pengguna pemesan
+}
+
+// Response untuk pesan kursi
+message PesanKursiResponse {
+  bool sukses = 1;       // Status keberhasilan transaksi
+  string pesan = 2;      // Pesan deskriptif
+  string jadwal_id = 3;  // ID Jam Tayang
+  string kursi_id = 4;   // ID kursi yang dipesan
+  double held_until = 5; // Timestamp kedaluwarsa hold
+}
+
+// Request untuk mendapatkan info jadwal & layout studio
+message JadwalRequest {
+  string jadwal_id = 1;  // ID Jam Tayang & Studio (misal: "SHOW_1300_ST1")
+}
+
+// Data detail per kursi
+message KursiInfo {
+  string kursi_id = 1;
+  string status = 2;     // "AVAILABLE", "PENDING_PAYMENT", "BOOKED"
+  string user_id = 3;
+  double held_until = 4;
+}
+
+// Response detail denah dan ketersediaan kursi jadwal
+message JadwalResponse {
+  string jadwal_id = 1;
+  string nama_film = 2;
+  string jam_tayang = 3;
+  string studio_id = 4;
+  int32 total_kursi = 5;
+  int32 kursi_tersedia = 6;
+  repeated KursiInfo kursi = 7;
+}
+
+// Request untuk cek status satu kursi
+message KursiRequest {
+  string jadwal_id = 1;
+  string kursi_id = 2;
+}
+
+// Response status satu kursi
+message KursiStatusResponse {
+  string jadwal_id = 1;
+  string kursi_id = 2;
+  string status = 3;      // "AVAILABLE", "PENDING_PAYMENT", "BOOKED"
+  string user_id = 4;
+  double held_until = 5;
+}
+
+// Request konfirmasi pembayaran
+message BayarRequest {
+  string request_id = 1;
+  string jadwal_id = 2;
+  string kursi_id = 3;
+  string user_id = 4;
+}
+
+// Response konfirmasi pembayaran
+message KonfirmasiResponse {
+  bool sukses = 1;
+  string pesan = 2;
+  string jadwal_id = 3;
+  string kursi_id = 4;
+}
