@@ -1,121 +1,322 @@
-const films = [
-  { id: 'interstellar', title: 'Interstellar', genre: 'Petualangan · Fiksi ilmiah', duration: '2j 49m', studio: 'Studio 1', times: ['13.00', '16.40'], art: 'space', number: '01' },
-  { id: 'oppenheimer', title: 'Oppenheimer', genre: 'Drama · Sejarah', duration: '3j 00m', studio: 'Studio 2', times: ['15.40', '19.10'], art: 'fire', number: '02' },
-  { id: 'inception', title: 'Inception', genre: 'Aksi · Fiksi ilmiah', duration: '2j 28m', studio: 'Studio 1', times: ['18.00', '20.30'], art: 'dream', number: '03' },
-];
-
-const occupiedByFilm = {
-  interstellar: ['A4', 'A5', 'B4', 'C8', 'D8', 'E2'],
-  oppenheimer: ['A2', 'B2', 'B3', 'C6', 'E5', 'F5'],
-  inception: ['A7', 'B7', 'C3', 'D3', 'E9', 'F9'],
+const filmDetails = {
+  'Avengers: Endgame': { genre: 'Aksi · Fiksi ilmiah', order: '01', poster: 'assets/avengers-endgame.jpg' },
+  Midway: { genre: 'Perang · Sejarah', order: '02', poster: 'assets/midway.webp' },
+  '1917': { genre: 'Perang · Drama', order: '03', poster: 'assets/1917-poster.jpeg' },
 };
 
-const state = { date: 0, filmId: null, time: null, seats: new Set() };
+const state = {
+  schedules: [],
+  schedule: null,
+  selectedScheduleId: null,
+  selectedSeats: new Set(),
+  statusStreams: new Map(),
+  user: null,
+};
+
 const movieGrid = document.querySelector('#movie-grid');
-const dateOptions = document.querySelector('#date-options');
 const seatMap = document.querySelector('#seat-map');
 const seatSummary = document.querySelector('#seat-summary-text');
 const bookingButton = document.querySelector('#booking-button');
 const selectedShowCopy = document.querySelector('#selected-show-copy');
+const connectionStatus = document.querySelector('#connection-status');
+const bookingDialog = document.querySelector('#booking-dialog');
+const dialogCopy = document.querySelector('#dialog-copy');
+const dialogFeedback = document.querySelector('#dialog-feedback');
+const customerName = document.querySelector('#customer-name');
+const confirmBookingButton = document.querySelector('#confirm-booking-button');
 
-function renderDates() {
-  const today = new Date();
-  const dates = Array.from({ length: 4 }, (_, index) => {
-    const day = new Date(today);
-    day.setDate(today.getDate() + index);
-    return day;
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
   });
-  dateOptions.innerHTML = dates.map((date, index) => {
-    const dayName = index === 0 ? 'Hari ini' : new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(date);
-    const dateLabel = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(date);
-    return `<button class="date-button" type="button" data-date="${index}" aria-pressed="${state.date === index}"><strong>${dayName}</strong>${dateLabel}</button>`;
-  }).join('');
+  const data = response.status === 204 ? null : await response.json();
+  if (!response.ok) throw new Error(data?.error || data?.pesan || `Permintaan gagal (${response.status})`);
+  return data;
 }
 
-function selectedDateLabel() {
-  const date = new Date();
-  date.setDate(date.getDate() + state.date);
-  return new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+function showConnection(message, isError = false) {
+  connectionStatus.textContent = message;
+  connectionStatus.classList.toggle('is-error', isError);
 }
 
 function renderMovies() {
-  movieGrid.innerHTML = films.map((film) => `
-    <article class="movie-card">
-      <div class="movie-poster poster-${film.art}" role="img" aria-label="Ilustrasi film ${film.title}">
-        <span class="poster-label">WARTIX · PILIHAN FILM</span>
-        <strong class="poster-title">${film.title === 'Interstellar' ? 'INTER<br>STELLAR' : film.title.toUpperCase()}</strong>
-        <span class="poster-number" aria-hidden="true">${film.number}</span>
-      </div>
-      <div class="movie-details">
-        <h3>${film.title}</h3>
-        <span class="movie-duration">${film.duration}</span>
-        <p class="movie-meta">${film.genre} · ${film.studio}</p>
-        <div class="showtimes" aria-label="Pilih jam tayang ${film.title}">
-          ${film.times.map((time) => `<button class="time-button" type="button" data-film="${film.id}" data-time="${time}" aria-pressed="${state.filmId === film.id && state.time === time}">${time}</button>`).join('')}
+  if (!state.schedules.length) {
+    movieGrid.innerHTML = '<p class="catalog-empty">Belum ada jadwal film yang tersedia.</p>';
+    return;
+  }
+
+  const films = state.schedules.reduce((groups, schedule) => {
+    groups.set(schedule.nama_film, [...(groups.get(schedule.nama_film) || []), schedule]);
+    return groups;
+  }, new Map());
+  movieGrid.innerHTML = [...films.entries()].map(([film, schedules]) => {
+    const details = filmDetails[film] || { genre: 'Film pilihan', order: '', poster: '' };
+    const poster = details.poster
+      ? `<img class="poster-image" src="${details.poster}" alt="Poster ${film}" loading="lazy" />`
+      : '<div class="poster-fallback" aria-hidden="true">WARTIX</div>';
+    const filmSelected = schedules.some((schedule) => state.selectedScheduleId === schedule.jadwal_id);
+    return `
+      <article class="movie-card ${filmSelected ? 'is-selected' : ''}">
+        <div class="movie-poster">${poster}<span class="poster-label">PILIHAN FILM <b>${details.order}</b></span></div>
+        <div class="movie-details">
+          <h3>${film}</h3>
+          <p class="movie-meta">${details.genre} · ${schedules[0].studio_id}</p>
+          <div class="showtimes" aria-label="Jadwal ${film}">
+            ${schedules.map((schedule) => {
+              const selected = state.selectedScheduleId === schedule.jadwal_id;
+              return `<button class="time-button${selected ? ' is-selected' : ''}" type="button" data-schedule="${schedule.jadwal_id}" aria-pressed="${selected}">
+                ${schedule.jam_tayang.slice(0, 5)}
+              </button>`;
+            }).join('')}
+          </div>
         </div>
-      </div>
-    </article>`).join('');
+      </article>`;
+  }).join('');
+}
+
+function statusLabel(status, isMine) {
+  if (status === 'AVAILABLE') return 'tersedia';
+  if (status === 'PENDING_PAYMENT') return isMine ? 'ditahan olehmu' : 'sedang ditahan';
+  return 'terjual';
 }
 
 function renderSeats() {
-  const selectedFilm = films.find((film) => film.id === state.filmId);
-  if (!selectedFilm || !state.time) {
-    selectedShowCopy.textContent = 'Pilih film dan jadwal tayang untuk melihat denah kursi.';
-    seatMap.innerHTML = '<p class="seat-empty">Denah kursi akan muncul setelah jadwal dipilih.</p>';
+  const schedule = state.schedule;
+  if (!schedule) {
+    selectedShowCopy.textContent = 'Pilih film dan jam tayang untuk melihat denah kursi.';
+    seatMap.innerHTML = '<p class="seat-empty">Denah kursi akan dimuat dari server setelah jadwal dipilih.</p>';
     seatSummary.textContent = 'Belum ada';
     bookingButton.disabled = true;
     return;
   }
 
-  selectedShowCopy.textContent = `${selectedFilm.title} · ${selectedDateLabel()} · ${state.time} · ${selectedFilm.studio}`;
-  const occupied = occupiedByFilm[selectedFilm.id];
+  selectedShowCopy.textContent = `${schedule.nama_film} · ${schedule.jam_tayang.slice(0, 5)} · ${schedule.studio_id} · ${schedule.kursi_tersedia} kursi tersedia`;
+  const seats = new Map(schedule.kursi.map((seat) => [seat.kursi_id, seat]));
   const rows = ['A', 'B', 'C', 'D', 'E', 'F'];
   seatMap.innerHTML = rows.map((row) => `
     <span class="row-label" aria-hidden="true">${row}</span>
     ${Array.from({ length: 10 }, (_, index) => {
-      const seat = `${row}${index + 1}`;
-      const taken = occupied.includes(seat);
-      const chosen = state.seats.has(seat);
-      return `<button class="seat ${taken ? 'occupied' : chosen ? 'selected' : 'available'}" type="button" data-seat="${seat}" aria-label="Kursi ${seat}${taken ? ', terisi' : chosen ? ', dipilih' : ', tersedia'}" aria-pressed="${chosen}" ${taken ? 'disabled' : ''}></button>`;
+      const seatId = `${row}${index + 1}`;
+      const seat = seats.get(seatId);
+      const status = seat?.status || 'AVAILABLE';
+      const selected = state.selectedSeats.has(seatId);
+      const mine = status === 'PENDING_PAYMENT' && seat.user_id === state.user?.id;
+      const kind = selected ? 'selected' : status === 'AVAILABLE' ? 'available' : status === 'PENDING_PAYMENT' ? 'held' : 'occupied';
+      const label = statusLabel(status, mine);
+      const cancelAction = mine ? `data-cancel-seat="${seatId}"` : '';
+      const disabled = status !== 'AVAILABLE' && !mine;
+      const description = mine ? 'klik untuk membatalkan hold' : label;
+      return `<button class="seat ${kind}${mine ? ' mine' : ''}" type="button" data-seat="${seatId}" ${cancelAction} aria-label="Kursi ${seatId}, ${selected ? 'dipilih' : description}" aria-pressed="${selected}" ${disabled ? 'disabled' : ''} title="Kursi ${seatId}: ${description}"></button>`;
     }).join('')}`).join('');
 
-  const selection = [...state.seats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  seatSummary.textContent = selection.length ? selection.join(', ') : 'Belum ada';
-  bookingButton.disabled = selection.length === 0;
+  const selected = [...state.selectedSeats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  seatSummary.textContent = selected.length ? selected.join(', ') : 'Belum ada';
+  bookingButton.disabled = selected.length === 0;
 }
 
-dateOptions.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-date]');
-  if (!button) return;
-  state.date = Number(button.dataset.date);
-  renderDates();
-  renderSeats();
-});
+async function loadSchedules() {
+  showConnection('Menghubungkan ke server Wartix…');
+  try {
+    state.schedules = await api('/api/schedules');
+    showConnection('Terhubung ke server Wartix · jadwal dan kursi diperbarui langsung.');
+    renderMovies();
+  } catch (error) {
+    showConnection(`Server Wartix belum dapat dihubungi: ${error.message}`, true);
+    movieGrid.innerHTML = '<button class="button button-red" id="retry-catalog" type="button">Coba lagi</button>';
+  }
+}
 
-movieGrid.addEventListener('click', (event) => {
-  const button = event.target.closest('[data-time]');
-  if (!button) return;
-  state.filmId = button.dataset.film;
-  state.time = button.dataset.time;
-  state.seats.clear();
+async function chooseSchedule(scheduleId) {
+  closeAllStatusStreams();
+  state.selectedScheduleId = scheduleId;
+  state.selectedSeats.clear();
+  state.schedule = null;
   renderMovies();
   renderSeats();
-  document.querySelector('#jadwal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    state.schedule = await api(`/api/schedule?jadwal_id=${encodeURIComponent(scheduleId)}`);
+    renderMovies();
+    renderSeats();
+    document.querySelector('#jadwal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    showConnection(`Jadwal tidak dapat dimuat: ${error.message}`, true);
+  }
+}
+
+function closeAllStatusStreams() {
+  for (const stream of state.statusStreams.values()) stream.close();
+  state.statusStreams.clear();
+}
+
+function watchSeatStatus(seatId) {
+  if (state.statusStreams.has(seatId) || !state.selectedScheduleId) return;
+  const query = new URLSearchParams({ jadwal_id: state.selectedScheduleId, kursi_id: seatId });
+  const stream = new EventSource(`/api/stream-status?${query}`);
+  state.statusStreams.set(seatId, stream);
+  stream.onmessage = (event) => {
+    const update = JSON.parse(event.data);
+    if (state.schedule?.jadwal_id !== update.jadwal_id) return;
+    const seat = state.schedule.kursi.find((item) => item.kursi_id === update.kursi_id);
+    if (!seat) return;
+    Object.assign(seat, update);
+    if (update.status !== 'AVAILABLE' && update.user_id !== state.user?.id && state.selectedSeats.delete(update.kursi_id)) {
+      notify(`Kursi ${update.kursi_id} baru saja ditahan oleh pemesan lain.`);
+      stream.close();
+      state.statusStreams.delete(seatId);
+    }
+    renderSeats();
+  };
+  stream.onerror = () => {
+    // EventSource akan mencoba tersambung kembali otomatis.
+  };
+}
+
+function toggleSeat(seatId) {
+  const seat = state.schedule?.kursi.find((item) => item.kursi_id === seatId);
+  if (!seat || seat.status !== 'AVAILABLE') return;
+  if (state.selectedSeats.has(seatId)) {
+    state.selectedSeats.delete(seatId);
+    state.statusStreams.get(seatId)?.close();
+    state.statusStreams.delete(seatId);
+  } else {
+    state.selectedSeats.add(seatId);
+    watchSeatStatus(seatId);
+  }
+  renderSeats();
+}
+
+async function cancelHold(seatId) {
+  const seat = state.schedule?.kursi.find((item) => item.kursi_id === seatId);
+  if (!seat || seat.status !== 'PENDING_PAYMENT' || seat.user_id !== state.user?.id) return;
+  try {
+    const result = await api('/api/cancel', {
+      method: 'POST',
+      body: JSON.stringify({
+        request_id: crypto.randomUUID(),
+        jadwal_id: state.schedule.jadwal_id,
+        kursi_id: seatId,
+        user_id: state.user.id,
+      }),
+    });
+    await refreshSelectedSchedule();
+    notify(result.pesan);
+  } catch (error) {
+    notify(`Hold tidak dapat dibatalkan: ${error.message}`, true);
+  }
+}
+
+async function refreshSelectedSchedule() {
+  if (!state.selectedScheduleId) return;
+  state.schedule = await api(`/api/schedule?jadwal_id=${encodeURIComponent(state.selectedScheduleId)}`);
+  const summary = state.schedules.find((item) => item.jadwal_id === state.selectedScheduleId);
+  if (summary) summary.kursi_tersedia = state.schedule.kursi_tersedia;
+  renderMovies();
+  renderSeats();
+}
+
+function notify(message, isError = false) {
+  const element = document.querySelector('#toast');
+  element.textContent = message;
+  element.classList.toggle('is-error', isError);
+  element.classList.add('is-visible');
+  clearTimeout(notify.timer);
+  notify.timer = setTimeout(() => element.classList.remove('is-visible'), 4200);
+}
+
+function openBookingDialog() {
+  const schedule = state.schedule;
+  const selected = [...state.selectedSeats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  if (!schedule || !selected.length) return;
+  dialogCopy.textContent = `${schedule.nama_film} · ${schedule.jam_tayang.slice(0, 5)} · ${schedule.studio_id} · Kursi ${selected.join(', ')}`;
+  dialogFeedback.textContent = '';
+  confirmBookingButton.disabled = false;
+  confirmBookingButton.dataset.done = 'false';
+  confirmBookingButton.textContent = 'Pesan kursi';
+  confirmBookingButton.onclick = null;
+  bookingDialog.showModal();
+  if (state.user?.name) customerName.value = state.user.name;
+  customerName.focus();
+}
+
+async function submitBooking() {
+  const name = customerName.value.trim();
+  if (!name) {
+    customerName.focus();
+    dialogFeedback.textContent = 'Masukkan nama pemesan terlebih dahulu.';
+    return;
+  }
+
+  const user = state.user?.name === name
+    ? state.user
+    : { id: `web-${crypto.randomUUID()}`, name };
+  state.user = user;
+  sessionStorage.setItem('wartix-user', JSON.stringify(user));
+
+  const schedule = state.schedule;
+  const selected = [...state.selectedSeats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  confirmBookingButton.disabled = true;
+  dialogFeedback.textContent = 'Memproses hold kursi di server…';
+  const results = [];
+
+  for (const seatId of selected) {
+    try {
+      const result = await api('/api/book', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_id: crypto.randomUUID(),
+          jadwal_id: schedule.jadwal_id,
+          kursi_id: seatId,
+          user_id: user.id,
+        }),
+      });
+      const until = new Date(result.held_until * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      results.push(`${seatId} berhasil ditahan sampai ${until}`);
+    } catch (error) {
+      results.push(`${seatId} gagal: ${error.message}`);
+    }
+  }
+
+  state.selectedSeats.clear();
+  closeAllStatusStreams();
+  try {
+    state.schedule = await api(`/api/schedule?jadwal_id=${encodeURIComponent(schedule.jadwal_id)}`);
+    const summary = state.schedules.find((item) => item.jadwal_id === schedule.jadwal_id);
+    if (summary) summary.kursi_tersedia = state.schedule.kursi_tersedia;
+    renderMovies();
+    renderSeats();
+  } catch (error) {
+    console.error('Gagal menyegarkan status kursi:', error);
+  }
+
+  dialogFeedback.textContent = results.join('. ');
+  confirmBookingButton.disabled = false;
+  confirmBookingButton.dataset.done = 'true';
+  confirmBookingButton.textContent = 'Selesai';
+}
+
+movieGrid.addEventListener('click', (event) => {
+  const retry = event.target.closest('#retry-catalog');
+  if (retry) {
+    loadSchedules();
+    return;
+  }
+  const button = event.target.closest('[data-schedule]');
+  if (button) chooseSchedule(button.dataset.schedule);
 });
 
 seatMap.addEventListener('click', (event) => {
   const button = event.target.closest('[data-seat]');
   if (!button || button.disabled) return;
-  const seat = button.dataset.seat;
-  if (state.seats.has(seat)) state.seats.delete(seat);
-  else state.seats.add(seat);
-  renderSeats();
+  if (button.dataset.cancelSeat) cancelHold(button.dataset.cancelSeat);
+  else toggleSeat(button.dataset.seat);
 });
 
-bookingButton.addEventListener('click', () => {
-  const film = films.find((item) => item.id === state.filmId);
-  document.querySelector('#dialog-copy').textContent = `${film.title}, ${selectedDateLabel()}, pukul ${state.time}, ${film.studio}. Kursi ${[...state.seats].sort().join(', ')}.`;
-  document.querySelector('#booking-dialog').showModal();
+bookingButton.addEventListener('click', openBookingDialog);
+confirmBookingButton.addEventListener('click', () => {
+  if (confirmBookingButton.dataset.done === 'true') bookingDialog.close();
+  else submitBooking();
 });
 
 const menuToggle = document.querySelector('.menu-toggle');
@@ -134,6 +335,11 @@ mainNav.addEventListener('click', (event) => {
   }
 });
 
-renderDates();
-renderMovies();
+try {
+  state.user = JSON.parse(sessionStorage.getItem('wartix-user') || 'null');
+} catch {
+  state.user = null;
+}
+
 renderSeats();
+loadSchedules();

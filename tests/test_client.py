@@ -28,16 +28,16 @@ class TestWartixClient(unittest.TestCase):
 
     def test_interactive_client_operations(self):
         with WartixClient([f"127.0.0.1:{self.port}"]) as client:
-            schedule = client.get_schedule("SHOW_1300_ST1")
+            schedule = client.get_schedule("SHOW_0800_ST1")
             self.assertEqual(schedule.kursi_tersedia, 60)
 
-            held = client.book_seat("SHOW_1300_ST1", "A1", "user-test")
+            held = client.book_seat("SHOW_0800_ST1", "A1", "user-test")
             self.assertTrue(held.sukses)
-            self.assertEqual(client.get_seat_status("SHOW_1300_ST1", "A1").status, "PENDING_PAYMENT")
+            self.assertEqual(client.get_seat_status("SHOW_0800_ST1", "A1").status, "PENDING_PAYMENT")
 
-            paid = client.confirm_payment("SHOW_1300_ST1", "A1", "user-test")
+            paid = client.confirm_payment("SHOW_0800_ST1", "A1", "user-test")
             self.assertTrue(paid.sukses)
-            self.assertEqual(client.get_seat_status("SHOW_1300_ST1", "A1").status, "BOOKED")
+            self.assertEqual(client.get_seat_status("SHOW_0800_ST1", "A1").status, "BOOKED")
 
     def test_multiple_clients_fail_over_to_live_endpoint(self):
         unavailable = self.unused_port()
@@ -49,7 +49,7 @@ class TestWartixClient(unittest.TestCase):
             backoff_max=0,
         ) as client:
             def reserve(index):
-                return client.book_seat("SHOW_1300_ST1", "A1", f"user-{index}").sukses
+                return client.book_seat("SHOW_0800_ST1", "A1", f"user-{index}").sukses
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 outcomes = list(executor.map(reserve, range(5)))

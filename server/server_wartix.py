@@ -4,8 +4,9 @@ Modul server_wartix.py: Core gRPC Servicer & Server Runner Wartix Multi-Jam Taya
 Mengimplementasikan LayananWartixServicer:
 1. GetJadwalStudio: Menampilkan ketersediaan 60 kursi pada jam tayang & studio tertentu.
 2. PesanKursi: Menahan (hold) kursi secara atomik (Mutex Lock) dan aman dari retry (At-Most-Once).
-3. KonfirmasiPembayaran: Mengonfirmasi pembayaran kursi yang di-hold menjadi BOOKED.
-4. Server Runner di port 50051 dengan ThreadPoolExecutor(max_workers=10).
+3. StreamStatusKursi: Mengirim status awal dan perubahan kursi sebagai server stream.
+4. KonfirmasiPembayaran & BatalPesanan: Menyelesaikan atau melepas hold.
+5. Server Runner di port 50051 dengan ThreadPoolExecutor.
 """
 
 import os
@@ -44,9 +45,13 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
         self._status_subscribers = {}
 
     @staticmethod
+    def _request_cache_key(method: str, request_id: str) -> Optional[str]:
+        return f"{method}:{request_id}" if request_id else None
+
+    @staticmethod
     def _status_message(jadwal_id: str, seat) -> pb.KursiStatusResponse:
         return pb.KursiStatusResponse(
-            jadwal_id=jadwal_id,
+            jadwal_id=jadwal_id.strip(),
             kursi_id=seat["kursi_id"],
             status=seat["status"],
             user_id=seat["user_id"] or "",
@@ -60,7 +65,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
         kursi memiliki urutan konsisten.
         """
         for subscriber, (jadwal_id, kursi_id) in list(self._status_subscribers.items()):
-            if jadwal_id == status.jadwal_id and kursi_id == status.kursi_id:
+            if jadwal_id == status.jadwal_id.strip() and kursi_id == status.kursi_id.upper().strip():
                 subscriber.put_nowait(status)
 
     def GetJadwalStudio(self, request, context):
@@ -143,16 +148,11 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
         # =====================================================================
         # 1. CEK DEDUPLIKASI REQUEST AWAL (FAST-PATH)
         # =====================================================================
-        cached_response = self.lock_manager.check_duplicate(request.request_id)
-        if cached_response is not None:
-            return cached_response
-
-        # =====================================================================
-        # 2. MUTEX LOCK CRITICAL SECTION (PENCEGAHAN RACE CONDITION)
-        # =====================================================================
+        cache_key = self._request_cache_key("PesanKursi", request.request_id)
         with self.lock_manager.lock:
-            # Double-check deduplikasi di dalam lock untuk mengantisipasi concurrent retries
-            cached_response = self.lock_manager.check_duplicate(request.request_id)
+            # Check dan perubahan status berada di lock yang sama; retry serentak
+            # tidak dapat melewati pemeriksaan ketersediaan yang sama-sama kosong.
+            cached_response = self.lock_manager.check_duplicate(cache_key)
             if cached_response is not None:
                 return cached_response
 
@@ -183,6 +183,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
 
             elif status_kursi in ("PENDING_PAYMENT", "BOOKED"):
                 # Kursi pada jadwal ini sedang di-hold orang lain atau sudah terjual
+                sukses = False
                 response = pb.PesanKursiResponse(
                     sukses=False,
                     pesan="Kursi sedang dipesan/sudah terjual",
@@ -193,6 +194,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
 
             else:
                 # Jadwal atau nomor kursi tidak terdaftar
+                sukses = False
                 response = pb.PesanKursiResponse(
                     sukses=False,
                     pesan=f"Jadwal '{request.jadwal_id}' atau kursi '{request.kursi_id}' tidak valid",
@@ -202,7 +204,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 )
 
             # Simpan hasil akhir transaksi ke dalam cache proses deduplikasi
-            self.lock_manager.save_response(request.request_id, response)
+            self.lock_manager.save_response(cache_key, response)
             if sukses:
                 seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
                 if seat is not None:
@@ -211,13 +213,9 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
 
     def BatalPesanan(self, request, context):
         """Membatalkan hold pembayaran secara atomik dan idempoten."""
-        cached_response = self.lock_manager.check_duplicate(request.request_id)
-        if cached_response is not None:
-            return cached_response
-
+        cache_key = self._request_cache_key("BatalPesanan", request.request_id)
         with self.lock_manager.lock:
-            # Periksa ulang setelah mendapat lock untuk menangani retry serentak.
-            cached_response = self.lock_manager.check_duplicate(request.request_id)
+            cached_response = self.lock_manager.check_duplicate(cache_key)
             if cached_response is not None:
                 return cached_response
 
@@ -232,7 +230,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 jadwal_id=request.jadwal_id,
                 kursi_id=request.kursi_id,
             )
-            self.lock_manager.save_response(request.request_id, response)
+            self.lock_manager.save_response(cache_key, response)
             if sukses:
                 seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
                 if seat is not None:
@@ -301,12 +299,9 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
         RPC KonfirmasiPembayaran: Mengubah status 'PENDING_PAYMENT' menjadi 'BOOKED'
         pada jadwal dan studio yang bersangkutan.
         """
-        cached_response = self.lock_manager.check_duplicate(request.request_id)
-        if cached_response is not None:
-            return cached_response
-
+        cache_key = self._request_cache_key("KonfirmasiPembayaran", request.request_id)
         with self.lock_manager.lock:
-            cached_response = self.lock_manager.check_duplicate(request.request_id)
+            cached_response = self.lock_manager.check_duplicate(cache_key)
             if cached_response is not None:
                 return cached_response
 
@@ -321,7 +316,7 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 jadwal_id=request.jadwal_id,
                 kursi_id=request.kursi_id
             )
-            self.lock_manager.save_response(request.request_id, response)
+            self.lock_manager.save_response(cache_key, response)
             if sukses:
                 seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
                 if seat is not None:

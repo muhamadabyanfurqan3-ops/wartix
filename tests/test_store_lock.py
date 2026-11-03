@@ -14,48 +14,48 @@ class TestStudioStoreMultiJadwal(unittest.TestCase):
 
     def test_default_schedules(self):
         # 3 jadwal bawaan terdaftar
-        self.assertIn("SHOW_1300_ST1", self.store.jadwal)
-        self.assertIn("SHOW_1540_ST2", self.store.jadwal)
-        self.assertIn("SHOW_1800_ST1", self.store.jadwal)
+        self.assertIn("SHOW_0800_ST1", self.store.jadwal)
+        self.assertIn("SHOW_1000_ST2", self.store.jadwal)
+        self.assertIn("SHOW_1200_ST1", self.store.jadwal)
 
         # 60 kursi per jadwal
-        j1 = self.store.get_jadwal("SHOW_1300_ST1")
+        j1 = self.store.get_jadwal("SHOW_0800_ST1")
         self.assertIsNotNone(j1)
         self.assertEqual(j1["total_kursi"], 60)
         self.assertEqual(j1["kursi_tersedia"], 60)
 
     def test_schedule_isolation(self):
-        # Hold kursi A1 pada SHOW_1300_ST1
-        sukses, _, _ = self.store.hold_kursi("SHOW_1300_ST1", "A1", "user_1300", duration_seconds=120)
+        # Hold kursi A1 pada SHOW_0800_ST1
+        sukses, _, _ = self.store.hold_kursi("SHOW_0800_ST1", "A1", "user_1300", duration_seconds=120)
         self.assertTrue(sukses)
-        self.assertEqual(self.store.get_status("SHOW_1300_ST1", "A1"), "PENDING_PAYMENT")
+        self.assertEqual(self.store.get_status("SHOW_0800_ST1", "A1"), "PENDING_PAYMENT")
 
-        # Kursi A1 pada SHOW_1540_ST2 harus tetap AVAILABLE (terisolasi)
-        self.assertEqual(self.store.get_status("SHOW_1540_ST2", "A1"), "AVAILABLE")
+        # Kursi A1 pada SHOW_1000_ST2 harus tetap AVAILABLE (terisolasi)
+        self.assertEqual(self.store.get_status("SHOW_1000_ST2", "A1"), "AVAILABLE")
 
-        # Bisa di-hold oleh user lain pada SHOW_1540_ST2
-        sukses2, _, _ = self.store.hold_kursi("SHOW_1540_ST2", "A1", "user_1540", duration_seconds=120)
+        # Bisa di-hold oleh user lain pada SHOW_1000_ST2
+        sukses2, _, _ = self.store.hold_kursi("SHOW_1000_ST2", "A1", "user_1540", duration_seconds=120)
         self.assertTrue(sukses2)
-        self.assertEqual(self.store.get_status("SHOW_1540_ST2", "A1"), "PENDING_PAYMENT")
+        self.assertEqual(self.store.get_status("SHOW_1000_ST2", "A1"), "PENDING_PAYMENT")
 
     def test_hold_and_confirm_payment(self):
-        # Hold dan konfirmasi pembayaran pada SHOW_1800_ST1
-        sukses_hold, _, _ = self.store.hold_kursi("SHOW_1800_ST1", "B5", "user_vip", duration_seconds=120)
+        # Hold dan konfirmasi pembayaran pada SHOW_1200_ST1
+        sukses_hold, _, _ = self.store.hold_kursi("SHOW_1200_ST1", "B5", "user_vip", duration_seconds=120)
         self.assertTrue(sukses_hold)
 
-        sukses_bayar, _ = self.store.confirm_payment("SHOW_1800_ST1", "B5", "user_vip")
+        sukses_bayar, _ = self.store.confirm_payment("SHOW_1200_ST1", "B5", "user_vip")
         self.assertTrue(sukses_bayar)
-        self.assertEqual(self.store.get_status("SHOW_1800_ST1", "B5"), "BOOKED")
+        self.assertEqual(self.store.get_status("SHOW_1200_ST1", "B5"), "BOOKED")
 
     def test_expired_hold_multi_jadwal(self):
         # Hold durasi 0.05 detik
-        self.store.hold_kursi("SHOW_1300_ST1", "C3", "user_exp", duration_seconds=0.05)
-        self.assertEqual(self.store.get_status("SHOW_1300_ST1", "C3"), "PENDING_PAYMENT")
+        self.store.hold_kursi("SHOW_0800_ST1", "C3", "user_exp", duration_seconds=0.05)
+        self.assertEqual(self.store.get_status("SHOW_0800_ST1", "C3"), "PENDING_PAYMENT")
 
         time.sleep(0.06)
         released = self.store.check_expired_holds()
-        self.assertIn(("SHOW_1300_ST1", "C3"), released)
-        self.assertEqual(self.store.get_status("SHOW_1300_ST1", "C3"), "AVAILABLE")
+        self.assertIn(("SHOW_0800_ST1", "C3"), released)
+        self.assertEqual(self.store.get_status("SHOW_0800_ST1", "C3"), "AVAILABLE")
 
 
 class TestLockManager(unittest.TestCase):

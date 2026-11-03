@@ -6,15 +6,15 @@ concurrent.futures.ThreadPoolExecutor(max_workers=50).
 
 Skenario Pengujian:
 1. 50 thread client dijalankan serentak untuk memesan kursi yang sama ("A1")
-   pada jadwal yang sama ("SHOW_1300_ST1").
+   pada jadwal yang sama ("SHOW_0800_ST1").
 2. Setiap thread dibekali request_id unik berupa UUIDv4 dan disinkronkan dengan threading.Barrier
    agar menembak gRPC server pada milidetik yang persis bersamaan.
 3. Kriteria Kelulusan (Assertions):
    - Jumlah Transaksi BERHASIL : Wajib TEPAT 1.
    - Jumlah Transaksi DITOLAK  : Wajib TEPAT 49.
-   - Status Akhir Kursi "A1" di "SHOW_1300_ST1" : Harus berstatus "PENDING_PAYMENT".
+   - Status Akhir Kursi "A1" di "SHOW_0800_ST1" : Harus berstatus "PENDING_PAYMENT".
 4. Verifikasi Isolasi Antar-Jam Tayang:
-   - Kursi "A1" pada "SHOW_1540_ST2" harus tetap "AVAILABLE" (terpisah total).
+   - Kursi "A1" pada "SHOW_1000_ST2" harus tetap "AVAILABLE" (terpisah total).
 """
 
 import os
@@ -40,7 +40,7 @@ def run_concurrency_test(
     host: str = "localhost",
     port: int = 50051,
     num_threads: int = 50,
-    target_jadwal: str = "SHOW_1300_ST1",
+    target_jadwal: str = "SHOW_0800_ST1",
     target_seat: str = "A1"
 ):
     """
@@ -182,7 +182,7 @@ def run_concurrency_test(
     # UJI ISOLASI MULTI-JAM TAYANG
     # =========================================================================
     print("\n--- UJI ISOLASI ANTAR-JAM TAYANG ---")
-    other_jadwal = "SHOW_1540_ST2"
+    other_jadwal = "SHOW_1000_ST2"
     status_other = stub.GetStatusKursi(pb.KursiRequest(jadwal_id=other_jadwal, kursi_id=target_seat))
     print(f"Memeriksa kursi '{target_seat}' pada jadwal berbeda ('{other_jadwal}'): {status_other.status}")
     if status_other.status == "AVAILABLE":
@@ -266,7 +266,7 @@ def main():
             host=host,
             port=port,
             num_threads=50,
-            target_jadwal="SHOW_1300_ST1",
+            target_jadwal="SHOW_0800_ST1",
             target_seat="A1"
         )
         if not sukses:

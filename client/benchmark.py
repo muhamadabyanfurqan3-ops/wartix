@@ -27,7 +27,7 @@ def benchmark_concurrency(
     client: WartixClient,
     concurrency_levels: Iterable[int] = (1, 5, 20),
     requests_per_level: int = 100,
-    jadwal_id: str = "SHOW_1300_ST1",
+    jadwal_id: str = "SHOW_0800_ST1",
     kursi_id: str = "A1",
 ) -> List[Dict[str, float]]:
     if requests_per_level < 1:
@@ -137,7 +137,7 @@ def main() -> None:
     parser.add_argument("--servers", default="localhost:50051", help="Comma-separated gRPC endpoints")
     parser.add_argument("--requests", type=int, default=100, help="Requests per concurrency level")
     parser.add_argument("--output", type=Path, default=Path("reports"), help="Report output directory")
-    parser.add_argument("--jadwal", default="SHOW_1300_ST1", help="Schedule ID for status requests")
+    parser.add_argument("--jadwal", default="SHOW_0800_ST1", help="Schedule ID for status requests")
     parser.add_argument("--kursi", default="A1", help="Seat ID for status requests")
     args = parser.parse_args()
     endpoints = [endpoint.strip() for endpoint in args.servers.split(",") if endpoint.strip()]

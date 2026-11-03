@@ -1,11 +1,11 @@
 # Frontend Wartix
 
-Frontend statis untuk pratinjau alur memilih film, jadwal, dan kursi. Film, jam tayang, serta kursi terisi pada `app.js` adalah data simulasi; halaman ini belum terhubung ke server gRPC. Integrasi browser memerlukan gateway HTTP atau gRPC-Web.
+Frontend Wartix terhubung ke layanan gRPC melalui `web_gateway.py`. Gateway menyajikan halaman, membaca katalog dari `DaftarJadwal`, meneruskan pemesanan ke `PesanKursi`, dan meneruskan streaming status kursi ke browser dengan Server-Sent Events.
 
 Jalankan dari root repository:
 
 ```bash
-python -m http.server 8000 --directory frontend
+python web_gateway.py
 ```
 
-Buka `http://localhost:8000` di browser.
+Buka `http://localhost:8000` di browser. Gateway akan menyalakan backend gRPC lokal pada port 50051 bila belum tersedia.

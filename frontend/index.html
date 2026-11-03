@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#722f37" />
     <meta name="description" content="Pilih film, jadwal, dan kursi bioskop bersama Wartix." />
-    <title>Wartix — Pesan Tiket Bioskop</title>
+    <title>Wartix - Pesan Tiket Bioskop</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
@@ -28,23 +29,15 @@
     <main>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-mark"></span> Bioskop, lebih dekat</p>
+          <p class="eyebrow"><span class="eyebrow-mark"></span> BIOSKOP, LEBIH DEKAT</p>
           <h1 id="hero-title">Pilih film.<br /><em>Temukan kursimu.</em></h1>
           <p class="hero-description">Malam yang seru dimulai dari satu pilihan. Cari film, pilih jadwal, lalu amankan kursi favoritmu.</p>
           <a class="button button-light" href="#film">Jelajahi film <span aria-hidden="true">↓</span></a>
           <p class="hero-footnote">Satu tempat untuk rencana nonton berikutnya.</p>
         </div>
-        <div class="hero-art" aria-label="Film pilihan: Interstellar" role="img">
-          <div class="hero-art-top"><span>WARTIX / PILIHAN FILM</span><span>01 — 03</span></div>
-          <div class="hero-orbit orbit-one"></div>
-          <div class="hero-orbit orbit-two"></div>
-          <div class="hero-planet"></div>
-          <div class="hero-art-bottom">
-            <span class="hero-art-label">MELINTASI BATAS WAKTU</span>
-            <strong>INTER<br />STELLAR</strong>
-            <span class="hero-art-meta">PETUALANGAN · 13.00 · STUDIO 1</span>
-          </div>
-          <span class="hero-art-index">W</span>
+        <div class="hero-art">
+          <img class="hero-poster" src="assets/avengers-endgame.jpg" alt="Poster Avengers: Endgame" />
+          <div class="hero-art-top"><span>FILM PILIHAN WARTIX</span><span>01 / 03</span></div>
         </div>
         <div class="hero-bottom-line"><span>01</span><span>FILM PILIHAN WARTIX</span><span class="line"></span><span>GULIR UNTUK MENJELAJAH</span></div>
       </section>
@@ -58,10 +51,10 @@
           <p class="section-intro">Pilih cerita yang ingin kamu ikuti, lalu tentukan waktu dan kursinya.</p>
         </div>
 
-        <div class="date-row" id="date-options" aria-label="Pilih tanggal menonton"></div>
+        <div class="catalog-status" id="connection-status" role="status" aria-live="polite">Menghubungkan ke server Wartix…</div>
 
         <div class="movie-grid" id="movie-grid" aria-live="polite"></div>
-        <p class="demo-note"><span aria-hidden="true">i</span> Jadwal dan kursi di halaman ini adalah data simulasi. Pemesanan belum terhubung ke server gRPC.</p>
+        <p class="demo-note"><span aria-hidden="true">i</span> Ketersediaan kursi diperbarui dari server Wartix. Hold berlaku selama dua menit.</p>
       </section>
 
       <section class="seat-section" id="jadwal" aria-labelledby="seat-title">
@@ -73,7 +66,8 @@
             <div class="seat-legend" aria-label="Keterangan status kursi">
               <span><i class="legend-seat available"></i> Tersedia</span>
               <span><i class="legend-seat selected"></i> Pilihanmu</span>
-              <span><i class="legend-seat occupied"></i> Terisi</span>
+              <span><i class="legend-seat held"></i> Ditahan / hold kamu</span>
+              <span><i class="legend-seat occupied"></i> Terjual</span>
             </div>
           </div>
           <div class="seat-picker" id="seat-picker">
@@ -110,13 +104,21 @@
       </div>
     </footer>
 
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
     <dialog class="booking-dialog" id="booking-dialog" aria-labelledby="dialog-title">
       <form method="dialog"><button class="dialog-close" aria-label="Tutup">×</button></form>
-      <p class="eyebrow eyebrow-dark">PRATINJAU PEMESANAN</p>
-      <h2 id="dialog-title">Pilihanmu tersimpan di halaman ini.</h2>
+      <p class="eyebrow eyebrow-dark">PEMESANAN TIKET</p>
+      <h2 id="dialog-title">Amankan kursi pilihanmu.</h2>
       <p id="dialog-copy"></p>
-      <p class="dialog-note">Ini masih simulasi antarmuka. Hubungkan frontend ke layanan gRPC melalui gateway untuk memproses reservasi sungguhan.</p>
-      <form method="dialog"><button class="button button-red">Mengerti</button></form>
+      <label class="dialog-field" for="customer-name">Nama pemesan
+        <input id="customer-name" name="customer-name" autocomplete="name" maxlength="60" required />
+      </label>
+      <p class="dialog-feedback" id="dialog-feedback" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <form method="dialog"><button class="button button-quiet">Kembali</button></form>
+        <button class="button button-red" id="confirm-booking-button" type="button">Pesan kursi <span aria-hidden="true">→</span></button>
+      </div>
     </dialog>
   </body>
 </html>

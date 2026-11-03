@@ -2,7 +2,7 @@
 Modul store.py: In-memory Data Store Multi-Jam Tayang & Layout Kursi.
 
 Mengelola data inventaris bioskop bertingkat secara independen berdasarkan:
-Jam Tayang & Studio (Contoh ID: "SHOW_1300_ST1", "SHOW_1540_ST2", "SHOW_1800_ST1").
+Jam Tayang & Studio (Contoh ID: "SHOW_0800_ST1", "SHOW_1000_ST2", "SHOW_1200_ST1").
 
 Setiap jadwal memiliki layout 60 kursi (A1 - F10) dengan siklus hidup state:
 1. "AVAILABLE"       : Kursi bebas dipilih.
@@ -10,8 +10,8 @@ Setiap jadwal memiliki layout 60 kursi (A1 - F10) dengan siklus hidup state:
 3. "BOOKED"          : Pembayaran terverifikasi dan tiket resmi terjual.
 
 Pemisahan State:
-Kursi A1 pada jam 13:00 ("SHOW_1300_ST1") terpisah total dan tidak mempengaruhi
-kursi A1 pada jam 15:40 ("SHOW_1540_ST2").
+Kursi A1 pada jam 13:00 ("SHOW_0800_ST1") terpisah total dan tidak mempengaruhi
+kursi A1 pada jam 15:40 ("SHOW_1000_ST2").
 """
 
 import time
@@ -28,15 +28,15 @@ class StudioStore:
 
     def __init__(self):
         """
-        Inisialisasi store dengan jadwal tayang default:
-        - "SHOW_1300_ST1" : Jam 13:00, Studio 1 (Film: Interstellar)
-        - "SHOW_1540_ST2" : Jam 15:40, Studio 2 (Film: Oppenheimer)
-        - "SHOW_1800_ST1" : Jam 18:00, Studio 1 (Film: Inception)
+        Inisialisasi katalog demo yang dipakai oleh frontend:
+        - Avengers: Endgame : Jam 08:00 dan 13:40
+        - Midway : Jam 10:00 dan 16:40
+        - 1917 : Jam 12:00 dan 19:00
         """
         # Struktur data bertingkat:
         # self.jadwal = {
-        #     "SHOW_1300_ST1": {
-        #         "jadwal_id": "SHOW_1300_ST1",
+        #     "SHOW_0800_ST1": {
+        #         "jadwal_id": "SHOW_0800_ST1",
         #         "nama_film": "...",
         #         "jam_tayang": "13:00",
         #         "studio_id": "Studio 1",
@@ -68,9 +68,12 @@ class StudioStore:
         Menginisialisasi jadwal-jadwal film bawaan.
         """
         schedules_info = [
-            ("SHOW_1300_ST1", "Interstellar", "13:00", "Studio 1"),
-            ("SHOW_1540_ST2", "Oppenheimer", "15:40", "Studio 2"),
-            ("SHOW_1800_ST1", "Inception", "18:00", "Studio 1"),
+            ("SHOW_0800_ST1", "Avengers: Endgame", "08:00", "Studio 1"),
+            ("SHOW_1340_ST1", "Avengers: Endgame", "13:40", "Studio 1"),
+            ("SHOW_1000_ST2", "Midway", "10:00", "Studio 2"),
+            ("SHOW_1640_ST2", "Midway", "16:40", "Studio 2"),
+            ("SHOW_1200_ST1", "1917", "12:00", "Studio 1"),
+            ("SHOW_1900_ST1", "1917", "19:00", "Studio 1"),
         ]
         for j_id, film, jam, studio in schedules_info:
             self.add_jadwal(jadwal_id=j_id, nama_film=film, jam_tayang=jam, studio_id=studio)
@@ -190,7 +193,7 @@ class StudioStore:
         Mengubah status kursi dari 'AVAILABLE' menjadi 'PENDING_PAYMENT'.
         
         Args:
-            jadwal_id: ID Jam Tayang & Studio (misal 'SHOW_1300_ST1')
+            jadwal_id: ID Jam Tayang & Studio (misal 'SHOW_0800_ST1')
             kursi_id: Kode kursi (misal 'A1')
             user_id: ID pengguna pemesan
             duration_seconds: Durasi penahanan kursi dalam detik (default 120s)
@@ -234,7 +237,7 @@ class StudioStore:
         Mengubah status kursi dari 'PENDING_PAYMENT' menjadi 'BOOKED' pada jadwal tertentu.
         
         Args:
-            jadwal_id: ID Jam Tayang & Studio (misal 'SHOW_1300_ST1')
+            jadwal_id: ID Jam Tayang & Studio (misal 'SHOW_0800_ST1')
             kursi_id: Kode kursi (misal 'A1')
             user_id: Opsional ID pengguna pemesan
             

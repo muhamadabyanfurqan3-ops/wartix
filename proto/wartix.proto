@@ -53,7 +53,7 @@ message StreamStatusKursiRequest {
 // Request untuk pesan kursi
 message PesanKursiRequest {
   string request_id = 1; // UUIDv4 untuk deduplikasi At-Most-Once
-  string jadwal_id = 2;  // ID Jam Tayang & Studio (misal: "SHOW_1300_ST1")
+  string jadwal_id = 2;  // ID Jam Tayang & Studio (misal: "SHOW_0800_ST1")
   string kursi_id = 3;   // Contoh: "A1", "B5"
   string user_id = 4;    // ID pengguna pemesan
 }
@@ -69,7 +69,7 @@ message PesanKursiResponse {
 
 // Request untuk mendapatkan info jadwal & layout studio
 message JadwalRequest {
-  string jadwal_id = 1;  // ID Jam Tayang & Studio (misal: "SHOW_1300_ST1")
+  string jadwal_id = 1;  // ID Jam Tayang & Studio (misal: "SHOW_0800_ST1")
 }
 
 // Data detail per kursi
