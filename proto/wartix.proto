@@ -15,7 +15,14 @@ service LayananWartix {
 
   // RPC konfirmasi pembayaran kursi yang sedang di-hold
   rpc KonfirmasiPembayaran (BayarRequest) returns (KonfirmasiResponse);
+
+  // Mengirim seluruh jadwal bioskop satu per satu dalam satu respons streaming.
+  // Client dapat menerima jadwal tanpa menunggu server menyusun satu daftar besar.
+  rpc DaftarJadwal (DaftarJadwalRequest) returns (stream JadwalResponse);
 }
+
+// Request kosong karena daftar jadwal dikirim seluruhnya oleh server.
+message DaftarJadwalRequest {}
 
 // Request untuk pesan kursi
 message PesanKursiRequest {

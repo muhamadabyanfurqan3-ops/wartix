@@ -70,6 +70,40 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 kursi=kursi_proto
             )
 
+    def DaftarJadwal(self, request, context):
+        """Mengirim snapshot katalog jadwal sebagai server stream."""
+        # Salin response di dalam lock agar snapshot konsisten, lalu yield di luar
+        # lock supaya client yang lambat tidak menahan transaksi reservasi.
+        with self.lock_manager.lock:
+            jadwal_ids = list(self.store.jadwal.keys())
+            responses = []
+            for jadwal_id in jadwal_ids:
+                j_data = self.store.get_jadwal(jadwal_id)
+                if j_data is None:
+                    continue
+                kursi_proto = [
+                    pb.KursiInfo(
+                        kursi_id=k["kursi_id"],
+                        status=k["status"],
+                        user_id=k["user_id"] or "",
+                        held_until=k["held_until"] or 0.0,
+                    )
+                    for k in j_data["kursi"]
+                ]
+                responses.append(
+                    pb.JadwalResponse(
+                        jadwal_id=j_data["jadwal_id"],
+                        nama_film=j_data["nama_film"],
+                        jam_tayang=j_data["jam_tayang"],
+                        studio_id=j_data["studio_id"],
+                        total_kursi=j_data["total_kursi"],
+                        kursi_tersedia=j_data["kursi_tersedia"],
+                        kursi=kursi_proto,
+                    )
+                )
+
+        yield from responses
+
     def PesanKursi(self, request, context):
         """
         RPC PesanKursi: Menahan (hold) kursi untuk pembayaran pada jadwal tertentu.

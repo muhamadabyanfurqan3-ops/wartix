@@ -32,6 +32,17 @@ wartix/
    - Menggunakan `request_id` (UUIDv4) sebagai Idempotency Key.
    - Retry request tidak akan menduplikasi pemesanan melainkan menyajikan response dari cache.
 
+## Desain Interface Protocol Buffers
+
+Kontrak lengkap dan alasan pemilihan pola komunikasi tercatat di [`docs/idl-proto.md`](docs/idl-proto.md).
+File sumber IDL berada di `proto/wartix.proto`; stub Python di `generated/` dibuat dari file tersebut.
+
+Untuk membuat ulang stub setelah mengubah IDL:
+
+```bash
+python -m grpc_tools.protoc -I proto --python_out=generated --grpc_python_out=generated proto/wartix.proto
+```
+
 ## Cara Menjalankan
 
 ### 1. Menjalankan Server gRPC

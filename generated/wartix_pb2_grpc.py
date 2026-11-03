@@ -3,10 +3,7 @@
 import grpc
 import warnings
 
-try:
-    from . import wartix_pb2 as wartix__pb2
-except ImportError:
-    import wartix_pb2 as wartix__pb2
+import wartix_pb2 as wartix__pb2
 
 GRPC_GENERATED_VERSION = '1.85.1'
 GRPC_VERSION = grpc.__version__
@@ -58,6 +55,11 @@ class LayananWartixStub:
                 request_serializer=wartix__pb2.BayarRequest.SerializeToString,
                 response_deserializer=wartix__pb2.KonfirmasiResponse.FromString,
                 _registered_method=True)
+        self.DaftarJadwal = channel.unary_stream(
+                '/wartix.LayananWartix/DaftarJadwal',
+                request_serializer=wartix__pb2.DaftarJadwalRequest.SerializeToString,
+                response_deserializer=wartix__pb2.JadwalResponse.FromString,
+                _registered_method=True)
 
 
 class LayananWartixServicer:
@@ -92,6 +94,14 @@ class LayananWartixServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DaftarJadwal(self, request, context):
+        """Mengirim seluruh jadwal bioskop satu per satu dalam satu respons streaming.
+        Client dapat menerima jadwal tanpa menunggu server menyusun satu daftar besar.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_LayananWartixServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -114,6 +124,11 @@ def add_LayananWartixServicer_to_server(servicer, server):
                     servicer.KonfirmasiPembayaran,
                     request_deserializer=wartix__pb2.BayarRequest.FromString,
                     response_serializer=wartix__pb2.KonfirmasiResponse.SerializeToString,
+            ),
+            'DaftarJadwal': grpc.unary_stream_rpc_method_handler(
+                    servicer.DaftarJadwal,
+                    request_deserializer=wartix__pb2.DaftarJadwalRequest.FromString,
+                    response_serializer=wartix__pb2.JadwalResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -225,6 +240,33 @@ class LayananWartix:
             '/wartix.LayananWartix/KonfirmasiPembayaran',
             wartix__pb2.BayarRequest.SerializeToString,
             wartix__pb2.KonfirmasiResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DaftarJadwal(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/wartix.LayananWartix/DaftarJadwal',
+            wartix__pb2.DaftarJadwalRequest.SerializeToString,
+            wartix__pb2.JadwalResponse.FromString,
             options,
             channel_credentials,
             insecure,
