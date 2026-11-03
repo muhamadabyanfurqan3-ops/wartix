@@ -5,6 +5,7 @@ import concurrent.futures
 import csv
 import html
 import statistics
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -37,23 +38,54 @@ def benchmark_concurrency(
     for concurrency in concurrency_levels:
         if concurrency < 1:
             raise ValueError("Concurrency levels must be at least 1")
-        latencies = []
-        failures = 0
+        if requests_per_level < concurrency:
+            raise ValueError(
+                f"requests_per_level must be at least {concurrency} "
+                "to run every client"
+            )
 
-        def measure_request():
-            started = time.perf_counter()
-            client.get_seat_status(jadwal_id, kursi_id)
-            return time.perf_counter() - started
+        start_time = []
+        start_barrier = threading.Barrier(
+            concurrency + 1, action=lambda: start_time.append(time.perf_counter())
+        )
+        base_requests, extra_requests = divmod(requests_per_level, concurrency)
 
-        benchmark_started = time.perf_counter()
+        def measure_client(worker_index: int):
+            worker_requests = base_requests + (worker_index < extra_requests)
+            latencies = []
+            failures = 0
+            with WartixClient(
+                endpoints=client.endpoints,
+                timeout=client.timeout,
+                max_retries=client.max_retries,
+                backoff_initial=client.backoff_initial,
+                backoff_max=client.backoff_max,
+            ) as worker_client:
+                start_barrier.wait()
+                for _ in range(worker_requests):
+                    started = time.perf_counter()
+                    try:
+                        worker_client.get_seat_status(jadwal_id, kursi_id)
+                        latencies.append(time.perf_counter() - started)
+                    except grpc.RpcError:
+                        failures += 1
+            return latencies, failures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-            futures = [executor.submit(measure_request) for _ in range(requests_per_level)]
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    latencies.append(future.result())
-                except grpc.RpcError:
-                    failures += 1
-        elapsed = time.perf_counter() - benchmark_started
+            futures = [
+                executor.submit(measure_client, worker_index)
+                for worker_index in range(concurrency)
+            ]
+            start_barrier.wait()
+            worker_results = [future.result() for future in futures]
+
+        elapsed = time.perf_counter() - start_time[0]
+        latencies = [
+            latency
+            for worker_latencies, _ in worker_results
+            for latency in worker_latencies
+        ]
+        failures = sum(worker_failures for _, worker_failures in worker_results)
         successful = len(latencies)
         results.append(
             {
@@ -135,7 +167,12 @@ table{{border-collapse:collapse;width:100%;margin-top:20px;background:#fff}}th,t
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark Wartix client latency and throughput")
     parser.add_argument("--servers", default="localhost:50051", help="Comma-separated gRPC endpoints")
-    parser.add_argument("--requests", type=int, default=100, help="Requests per concurrency level")
+    parser.add_argument(
+        "--requests",
+        type=int,
+        default=100,
+        help="Total requests per concurrency level (must be at least 20)",
+    )
     parser.add_argument("--output", type=Path, default=Path("reports"), help="Report output directory")
     parser.add_argument("--jadwal", default="SHOW_1300_ST1", help="Schedule ID for status requests")
     parser.add_argument("--kursi", default="A1", help="Seat ID for status requests")

@@ -164,6 +164,37 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 held_until=seat["held_until"] or 0.0
             )
 
+    def StreamStatusKursi(self, request, context):
+        """Stream status awal dan perubahan status untuk satu kursi."""
+        last_state = None
+        while context.is_active():
+            with self.lock_manager.lock:
+                seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
+                if seat is None:
+                    context.abort(
+                        grpc.StatusCode.NOT_FOUND,
+                        f"Kursi '{request.kursi_id}' pada jadwal "
+                        f"'{request.jadwal_id}' tidak ditemukan",
+                    )
+
+                state = (
+                    seat["status"],
+                    seat["user_id"] or "",
+                    seat["held_until"] or 0.0,
+                )
+                response = pb.KursiStatusResponse(
+                    jadwal_id=request.jadwal_id,
+                    kursi_id=seat["kursi_id"],
+                    status=state[0],
+                    user_id=state[1],
+                    held_until=state[2],
+                )
+
+            if state != last_state:
+                yield response
+                last_state = state
+            time.sleep(0.25)
+
     def KonfirmasiPembayaran(self, request, context):
         """
         RPC KonfirmasiPembayaran: Mengubah status 'PENDING_PAYMENT' menjadi 'BOOKED'

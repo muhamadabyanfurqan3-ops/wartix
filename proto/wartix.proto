@@ -13,6 +13,9 @@ service LayananWartix {
   // RPC pengecekan status satu kursi pada jadwal tertentu
   rpc GetStatusKursi (KursiRequest) returns (KursiStatusResponse);
 
+  // Stream snapshot awal dan setiap perubahan status kursi
+  rpc StreamStatusKursi (KursiRequest) returns (stream KursiStatusResponse);
+
   // RPC konfirmasi pembayaran kursi yang sedang di-hold
   rpc KonfirmasiPembayaran (BayarRequest) returns (KonfirmasiResponse);
 }

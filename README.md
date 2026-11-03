@@ -15,6 +15,9 @@ wartix/
 │   ├── store.py                 # StudioStore: In-memory Data Store bertingkat (Jadwal -> 60 Kursi A1-F10)
 │   ├── lock_manager.py          # LockManager: Mutex Lock & Deduplikasi Transaksi At-Most-Once
 │   └── server_wartix.py         # LayananWartixServicer & gRPC Server Runner (Port 50051)
+├── client/
+│   ├── engine.py                # WartixClient: operasi gRPC, retry, failover, dan stream status
+│   └── cli.py                   # CLI interaktif untuk melihat jadwal, memesan, dan memantau kursi
 └── tests/
     ├── test_concurrency.py      # Concurrency Stress Test 50 Thread Berebut Kursi di Jam Tayang Sama
     └── test_store_lock.py       # Unit Test StudioStore Multi-Jadwal & LockManager
@@ -31,6 +34,10 @@ wartix/
 3. **Semantik At-Most-Once**:
    - Menggunakan `request_id` (UUIDv4) sebagai Idempotency Key.
    - Retry request tidak akan menduplikasi pemesanan melainkan menyajikan response dari cache.
+4. **Pemantauan Status Kursi**:
+   - CLI dapat memantau satu kursi dalam satu jadwal lewat stream gRPC.
+   - Stream mengirim status awal, lalu hanya mengirim ulang saat status atau pemilik hold berubah.
+   - Tekan `Ctrl+C` untuk menghentikan pemantauan dan kembali ke menu.
 
 ## Cara Menjalankan
 
@@ -59,11 +66,35 @@ Beberapa endpoint dapat diberikan berurutan untuk failover:
 python -m client.cli --servers localhost:50051,localhost:50052
 ```
 
-Setiap RPC memakai timeout 2 detik dan maksimal 3 retry dengan exponential backoff. Retry transaksi memakai `request_id` yang sama. Server saat ini menyimpan kursi dan cache deduplikasi di memori masing-masing; endpoint failover hanya menjaga koneksi, bukan mereplikasi state. Untuk failover transaksi yang konsisten, semua endpoint perlu memakai state dan idempotency store bersama.
+#### Pengujian multi-port dan failover
+
+Buka dua terminal pada komputer server. Jalankan satu server di setiap terminal:
+```bash
+python server/server_wartix.py 50051
+python server/server_wartix.py 50052
+```
+
+Di terminal client, arahkan client ke kedua port:
+```bash
+python -m client.cli --servers localhost:50051,localhost:50052
+```
+
+Pilih aksi seperti melihat jadwal atau mengecek status beberapa kali untuk mencoba kedua endpoint. Matikan server pada port pertama dengan `Ctrl+C`, lalu lakukan aksi lagi; RPC unary akan mencoba endpoint berikutnya ketika mendapat error sementara. Untuk pengujian otomatis multi-client dan failover port, jalankan:
+```bash
+python -m unittest tests.test_client
+```
+
+Untuk komputer berbeda dalam jaringan lokal, jalankan server dengan perintah port yang sama pada komputer server, lalu ganti `localhost` pada client dengan alamat IP komputer tersebut, misalnya `192.168.1.10:50051,192.168.1.10:50052`. Pastikan port TCP diizinkan firewall dan komputer client dapat menjangkau server. Transport saat ini menggunakan gRPC tanpa TLS; gunakan hanya pada jaringan tepercaya.
+
+Setiap proses server menyimpan kursi dan cache deduplikasi sendiri di memori. Failover koneksi tidak mereplikasi data, sehingga jangan menganggap transaksi yang diterima server pertama otomatis terlihat di server kedua; konsistensi transaksi lintas server memerlukan state dan cache idempotensi bersama.
+
+Setiap pemanggilan RPC unary memakai timeout 2 detik dan maksimal 3 retry tambahan untuk error sementara (`UNAVAILABLE`, `DEADLINE_EXCEEDED`, atau `RESOURCE_EXHAUSTED`). Exponential backoff dimulai dari 0,1 detik, menjadi 0,2 dan 0,4 detik, dengan batas 1 detik. Setiap transaksi pemesanan atau pembayaran mendapat `request_id` UUIDv4 unik; ID yang sama dipakai kembali pada semua retry transaksi tersebut agar deduplikasi tetap bekerja. Pemanggilan transaksi baru mendapat ID baru.
+
+Server saat ini menyimpan kursi dan cache deduplikasi di memori masing-masing; endpoint failover hanya menjaga koneksi, bukan mereplikasi state. Untuk failover transaksi yang konsisten, semua endpoint perlu memakai state dan idempotency store bersama.
 
 ### 5. Benchmark Latensi & Throughput
 ```bash
 python -m client.benchmark --servers localhost:50051 --requests 100
 ```
 
-Benchmark menguji 1, 5, dan 20 client paralel, lalu membuat file CSV dan laporan HTML bergrafik di direktori `reports/`. Gunakan `--output path/to/reports` untuk memilih lokasi lain. Beberapa endpoint dapat diberikan memakai format daftar yang sama seperti CLI.
+Benchmark membuat 1, 5, dan 20 client gRPC terpisah yang mulai mengirim request secara serentak. `--requests` menentukan total request per tingkat konkurensi dan harus minimal 20 agar semua client aktif; hasil mencakup latensi rata-rata, p50, p95 (ms), throughput sukses (req/s), serta jumlah request gagal. Laporan CSV dan HTML bergrafik disimpan di direktori `reports/`. Gunakan `--output path/to/reports` untuk memilih lokasi lain. Beberapa endpoint dapat diberikan memakai format daftar yang sama seperti CLI.

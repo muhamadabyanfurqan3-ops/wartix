@@ -69,6 +69,13 @@ class WartixClient:
         request = pb.KursiRequest(jadwal_id=jadwal_id, kursi_id=kursi_id)
         return self._call("GetStatusKursi", request)
 
+    def stream_seat_status(self, jadwal_id: str, kursi_id: str, timeout: Optional[float] = None):
+        request = pb.KursiRequest(jadwal_id=jadwal_id, kursi_id=kursi_id)
+        with self._rotation_lock:
+            endpoint_index = self._next_endpoint
+            self._next_endpoint = (self._next_endpoint + 1) % len(self._stubs)
+        return self._stubs[endpoint_index].StreamStatusKursi(request, timeout=timeout)
+
     def book_seat(self, jadwal_id: str, kursi_id: str, user_id: str, request_id: Optional[str] = None):
         request = pb.PesanKursiRequest(
             request_id=request_id or str(uuid.uuid4()),

@@ -22,6 +22,7 @@ def run_cli(client: WartixClient) -> None:
         "2": "Cek status kursi",
         "3": "Pesan kursi",
         "4": "Konfirmasi pembayaran",
+        "5": "Pantau stream status kursi",
         "0": "Keluar",
     }
     while True:
@@ -55,6 +56,21 @@ def run_cli(client: WartixClient) -> None:
                     input("ID user: ").strip(),
                 )
                 print(f"{'Berhasil' if result.sukses else 'Ditolak'}: {result.pesan}")
+            elif choice == "5":
+                jadwal_id = input("ID jadwal: ").strip()
+                kursi_id = input("ID kursi: ").strip()
+                print("Memantau status (Ctrl+C untuk berhenti)...")
+                stream = client.stream_seat_status(jadwal_id, kursi_id)
+                try:
+                    for status in stream:
+                        print(
+                            f"{status.jadwal_id}/{status.kursi_id}: "
+                            f"{status.status} (user: {status.user_id or '-'}, "
+                            f"held_until: {status.held_until:.0f})"
+                        )
+                except KeyboardInterrupt:
+                    stream.cancel()
+                    print("\nPemantauan dihentikan.")
             else:
                 print("Pilihan tidak dikenal.")
         except grpc.RpcError as error:

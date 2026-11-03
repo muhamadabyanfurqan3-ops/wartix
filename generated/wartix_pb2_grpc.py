@@ -53,6 +53,11 @@ class LayananWartixStub:
                 request_serializer=wartix__pb2.KursiRequest.SerializeToString,
                 response_deserializer=wartix__pb2.KursiStatusResponse.FromString,
                 _registered_method=True)
+        self.StreamStatusKursi = channel.unary_stream(
+                '/wartix.LayananWartix/StreamStatusKursi',
+                request_serializer=wartix__pb2.KursiRequest.SerializeToString,
+                response_deserializer=wartix__pb2.KursiStatusResponse.FromString,
+                _registered_method=True)
         self.KonfirmasiPembayaran = channel.unary_unary(
                 '/wartix.LayananWartix/KonfirmasiPembayaran',
                 request_serializer=wartix__pb2.BayarRequest.SerializeToString,
@@ -85,6 +90,13 @@ class LayananWartixServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def StreamStatusKursi(self, request, context):
+        """Stream snapshot awal dan setiap perubahan status kursi
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def KonfirmasiPembayaran(self, request, context):
         """RPC konfirmasi pembayaran kursi yang sedang di-hold
         """
@@ -107,6 +119,11 @@ def add_LayananWartixServicer_to_server(servicer, server):
             ),
             'GetStatusKursi': grpc.unary_unary_rpc_method_handler(
                     servicer.GetStatusKursi,
+                    request_deserializer=wartix__pb2.KursiRequest.FromString,
+                    response_serializer=wartix__pb2.KursiStatusResponse.SerializeToString,
+            ),
+            'StreamStatusKursi': grpc.unary_stream_rpc_method_handler(
+                    servicer.StreamStatusKursi,
                     request_deserializer=wartix__pb2.KursiRequest.FromString,
                     response_serializer=wartix__pb2.KursiStatusResponse.SerializeToString,
             ),
@@ -196,6 +213,33 @@ class LayananWartix:
             request,
             target,
             '/wartix.LayananWartix/GetStatusKursi',
+            wartix__pb2.KursiRequest.SerializeToString,
+            wartix__pb2.KursiStatusResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def StreamStatusKursi(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/wartix.LayananWartix/StreamStatusKursi',
             wartix__pb2.KursiRequest.SerializeToString,
             wartix__pb2.KursiStatusResponse.FromString,
             options,
