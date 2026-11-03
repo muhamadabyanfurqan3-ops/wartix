@@ -48,3 +48,22 @@ python tests/test_concurrency.py
 ```bash
 python -m unittest discover tests
 ```
+
+### 4. Menjalankan Client Interaktif
+```bash
+python -m client.cli --servers localhost:50051
+```
+
+Beberapa endpoint dapat diberikan berurutan untuk failover:
+```bash
+python -m client.cli --servers localhost:50051,localhost:50052
+```
+
+Setiap RPC memakai timeout 2 detik dan maksimal 3 retry dengan exponential backoff. Retry transaksi memakai `request_id` yang sama. Server saat ini menyimpan kursi dan cache deduplikasi di memori masing-masing; endpoint failover hanya menjaga koneksi, bukan mereplikasi state. Untuk failover transaksi yang konsisten, semua endpoint perlu memakai state dan idempotency store bersama.
+
+### 5. Benchmark Latensi & Throughput
+```bash
+python -m client.benchmark --servers localhost:50051 --requests 100
+```
+
+Benchmark menguji 1, 5, dan 20 client paralel, lalu membuat file CSV dan laporan HTML bergrafik di direktori `reports/`. Gunakan `--output path/to/reports` untuk memilih lokasi lain. Beberapa endpoint dapat diberikan memakai format daftar yang sama seperti CLI.
