@@ -19,10 +19,36 @@ service LayananWartix {
   // Mengirim seluruh jadwal bioskop satu per satu dalam satu respons streaming.
   // Client dapat menerima jadwal tanpa menunggu server menyusun satu daftar besar.
   rpc DaftarJadwal (DaftarJadwalRequest) returns (stream JadwalResponse);
+
+  // Membatalkan hold kursi yang masih menunggu pembayaran.
+  rpc BatalPesanan (BatalPesananRequest) returns (BatalPesananResponse);
+
+  // Mengirim status awal dan perubahan status kursi sebagai server stream.
+  rpc StreamStatusKursi (StreamStatusKursiRequest) returns (stream KursiStatusResponse);
 }
 
 // Request kosong karena daftar jadwal dikirim seluruhnya oleh server.
 message DaftarJadwalRequest {}
+
+// Request untuk membatalkan hold milik pengguna.
+message BatalPesananRequest {
+  string request_id = 1; // UUID untuk deduplikasi retry
+  string jadwal_id = 2;
+  string kursi_id = 3;
+  string user_id = 4;
+}
+
+message BatalPesananResponse {
+  bool sukses = 1;
+  string pesan = 2;
+  string jadwal_id = 3;
+  string kursi_id = 4;
+}
+
+message StreamStatusKursiRequest {
+  string jadwal_id = 1;
+  string kursi_id = 2;
+}
 
 // Request untuk pesan kursi
 message PesanKursiRequest {

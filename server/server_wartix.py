@@ -9,6 +9,7 @@ Mengimplementasikan LayananWartixServicer:
 """
 
 import os
+import queue
 import sys
 import time
 from concurrent import futures
@@ -39,6 +40,28 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
         """
         self.store = store if store is not None else StudioStore()
         self.lock_manager = lock_manager if lock_manager is not None else LockManager()
+        # Subscriber menerima status yang cocok dengan jadwal dan kursinya.
+        self._status_subscribers = {}
+
+    @staticmethod
+    def _status_message(jadwal_id: str, seat) -> pb.KursiStatusResponse:
+        return pb.KursiStatusResponse(
+            jadwal_id=jadwal_id,
+            kursi_id=seat["kursi_id"],
+            status=seat["status"],
+            user_id=seat["user_id"] or "",
+            held_until=seat["held_until"] or 0.0,
+        )
+
+    def _broadcast_status(self, status: pb.KursiStatusResponse) -> None:
+        """Broadcast perubahan status ke subscriber yang sudah terfilter.
+
+        Caller harus memegang lock_manager.lock agar status publikasi dan mutasi
+        kursi memiliki urutan konsisten.
+        """
+        for subscriber, (jadwal_id, kursi_id) in list(self._status_subscribers.items()):
+            if jadwal_id == status.jadwal_id and kursi_id == status.kursi_id:
+                subscriber.put_nowait(status)
 
     def GetJadwalStudio(self, request, context):
         """
@@ -180,7 +203,82 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
 
             # Simpan hasil akhir transaksi ke dalam cache proses deduplikasi
             self.lock_manager.save_response(request.request_id, response)
+            if sukses:
+                seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
+                if seat is not None:
+                    self._broadcast_status(self._status_message(request.jadwal_id, seat))
             return response
+
+    def BatalPesanan(self, request, context):
+        """Membatalkan hold pembayaran secara atomik dan idempoten."""
+        cached_response = self.lock_manager.check_duplicate(request.request_id)
+        if cached_response is not None:
+            return cached_response
+
+        with self.lock_manager.lock:
+            # Periksa ulang setelah mendapat lock untuk menangani retry serentak.
+            cached_response = self.lock_manager.check_duplicate(request.request_id)
+            if cached_response is not None:
+                return cached_response
+
+            sukses, pesan = self.store.cancel_hold(
+                jadwal_id=request.jadwal_id,
+                kursi_id=request.kursi_id,
+                user_id=request.user_id,
+            )
+            response = pb.BatalPesananResponse(
+                sukses=sukses,
+                pesan=pesan,
+                jadwal_id=request.jadwal_id,
+                kursi_id=request.kursi_id,
+            )
+            self.lock_manager.save_response(request.request_id, response)
+            if sukses:
+                seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
+                if seat is not None:
+                    self._broadcast_status(self._status_message(request.jadwal_id, seat))
+            return response
+
+    def StreamStatusKursi(self, request, context):
+        """Stream status awal dan perubahan kursi sampai client menutup stream."""
+        jadwal_id = request.jadwal_id.strip()
+        kursi_id = request.kursi_id.upper().strip()
+        updates = queue.Queue()
+
+        # Daftarkan subscriber dan ambil status awal dalam critical section yang
+        # sama agar tidak ada perubahan yang terlewat di antara keduanya.
+        with self.lock_manager.lock:
+            seat = self.store.get_seat(jadwal_id, kursi_id)
+            if seat is None:
+                context.abort(
+                    grpc.StatusCode.NOT_FOUND,
+                    f"Kursi '{kursi_id}' pada jadwal '{jadwal_id}' tidak ditemukan",
+                )
+            self._status_subscribers[updates] = (jadwal_id, kursi_id)
+            current = self._status_message(jadwal_id, seat)
+
+        last_state = (current.status, current.user_id, current.held_until)
+        try:
+            yield current
+            while context.is_active():
+                try:
+                    update = updates.get(timeout=0.5)
+                except queue.Empty:
+                    # Hold dapat kedaluwarsa tanpa ada RPC lain yang menyentuh
+                    # kursi. Poll ringan ini menerbitkan transisi ke AVAILABLE.
+                    with self.lock_manager.lock:
+                        seat = self.store.get_seat(jadwal_id, kursi_id)
+                        if seat is None:
+                            return
+                        update = self._status_message(jadwal_id, seat)
+
+                state = (update.status, update.user_id, update.held_until)
+                if state != last_state:
+                    last_state = state
+                    yield update
+        finally:
+            with self.lock_manager.lock:
+                self._status_subscribers.pop(updates, None)
 
     def GetStatusKursi(self, request, context):
         """
@@ -224,6 +322,10 @@ class LayananWartixServicer(pb_grpc.LayananWartixServicer):
                 kursi_id=request.kursi_id
             )
             self.lock_manager.save_response(request.request_id, response)
+            if sukses:
+                seat = self.store.get_seat(request.jadwal_id, request.kursi_id)
+                if seat is not None:
+                    self._broadcast_status(self._status_message(request.jadwal_id, seat))
             return response
 
 

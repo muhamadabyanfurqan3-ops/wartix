@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cwartix.proto\x12\x06wartix\"\x15\n\x13\x44\x61\x66tarJadwalRequest\"]\n\x11PesanKursiRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x11\n\tjadwal_id\x18\x02 \x01(\t\x12\x10\n\x08kursi_id\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"l\n\x12PesanKursiResponse\x12\x0e\n\x06sukses\x18\x01 \x01(\x08\x12\r\n\x05pesan\x18\x02 \x01(\t\x12\x11\n\tjadwal_id\x18\x03 \x01(\t\x12\x10\n\x08kursi_id\x18\x04 \x01(\t\x12\x12\n\nheld_until\x18\x05 \x01(\x01\"\"\n\rJadwalRequest\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\"R\n\tKursiInfo\x12\x10\n\x08kursi_id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x0f\n\x07user_id\x18\x03 \x01(\t\x12\x12\n\nheld_until\x18\x04 \x01(\x01\"\xac\x01\n\x0eJadwalResponse\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x11\n\tnama_film\x18\x02 \x01(\t\x12\x12\n\njam_tayang\x18\x03 \x01(\t\x12\x11\n\tstudio_id\x18\x04 \x01(\t\x12\x13\n\x0btotal_kursi\x18\x05 \x01(\x05\x12\x16\n\x0ekursi_tersedia\x18\x06 \x01(\x05\x12 \n\x05kursi\x18\x07 \x03(\x0b\x32\x11.wartix.KursiInfo\"3\n\x0cKursiRequest\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x10\n\x08kursi_id\x18\x02 \x01(\t\"o\n\x13KursiStatusResponse\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x10\n\x08kursi_id\x18\x02 \x01(\t\x12\x0e\n\x06status\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\x12\x12\n\nheld_until\x18\x05 \x01(\x01\"X\n\x0c\x42\x61yarRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x11\n\tjadwal_id\x18\x02 \x01(\t\x12\x10\n\x08kursi_id\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"X\n\x12KonfirmasiResponse\x12\x0e\n\x06sukses\x18\x01 \x01(\x08\x12\r\n\x05pesan\x18\x02 \x01(\t\x12\x11\n\tjadwal_id\x18\x03 \x01(\t\x12\x10\n\x08kursi_id\x18\x04 \x01(\t2\xec\x02\n\rLayananWartix\x12\x43\n\nPesanKursi\x12\x19.wartix.PesanKursiRequest\x1a\x1a.wartix.PesanKursiResponse\x12@\n\x0fGetJadwalStudio\x12\x15.wartix.JadwalRequest\x1a\x16.wartix.JadwalResponse\x12\x43\n\x0eGetStatusKursi\x12\x14.wartix.KursiRequest\x1a\x1b.wartix.KursiStatusResponse\x12H\n\x14KonfirmasiPembayaran\x12\x14.wartix.BayarRequest\x1a\x1a.wartix.KonfirmasiResponse\x12\x45\n\x0c\x44\x61\x66tarJadwal\x12\x1b.wartix.DaftarJadwalRequest\x1a\x16.wartix.JadwalResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cwartix.proto\x12\x06wartix\"\x15\n\x13\x44\x61\x66tarJadwalRequest\"_\n\x13\x42\x61talPesananRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x11\n\tjadwal_id\x18\x02 \x01(\t\x12\x10\n\x08kursi_id\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"Z\n\x14\x42\x61talPesananResponse\x12\x0e\n\x06sukses\x18\x01 \x01(\x08\x12\r\n\x05pesan\x18\x02 \x01(\t\x12\x11\n\tjadwal_id\x18\x03 \x01(\t\x12\x10\n\x08kursi_id\x18\x04 \x01(\t\"?\n\x18StreamStatusKursiRequest\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x10\n\x08kursi_id\x18\x02 \x01(\t\"]\n\x11PesanKursiRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x11\n\tjadwal_id\x18\x02 \x01(\t\x12\x10\n\x08kursi_id\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"l\n\x12PesanKursiResponse\x12\x0e\n\x06sukses\x18\x01 \x01(\x08\x12\r\n\x05pesan\x18\x02 \x01(\t\x12\x11\n\tjadwal_id\x18\x03 \x01(\t\x12\x10\n\x08kursi_id\x18\x04 \x01(\t\x12\x12\n\nheld_until\x18\x05 \x01(\x01\"\"\n\rJadwalRequest\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\"R\n\tKursiInfo\x12\x10\n\x08kursi_id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x0f\n\x07user_id\x18\x03 \x01(\t\x12\x12\n\nheld_until\x18\x04 \x01(\x01\"\xac\x01\n\x0eJadwalResponse\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x11\n\tnama_film\x18\x02 \x01(\t\x12\x12\n\njam_tayang\x18\x03 \x01(\t\x12\x11\n\tstudio_id\x18\x04 \x01(\t\x12\x13\n\x0btotal_kursi\x18\x05 \x01(\x05\x12\x16\n\x0ekursi_tersedia\x18\x06 \x01(\x05\x12 \n\x05kursi\x18\x07 \x03(\x0b\x32\x11.wartix.KursiInfo\"3\n\x0cKursiRequest\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x10\n\x08kursi_id\x18\x02 \x01(\t\"o\n\x13KursiStatusResponse\x12\x11\n\tjadwal_id\x18\x01 \x01(\t\x12\x10\n\x08kursi_id\x18\x02 \x01(\t\x12\x0e\n\x06status\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\x12\x12\n\nheld_until\x18\x05 \x01(\x01\"X\n\x0c\x42\x61yarRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\t\x12\x11\n\tjadwal_id\x18\x02 \x01(\t\x12\x10\n\x08kursi_id\x18\x03 \x01(\t\x12\x0f\n\x07user_id\x18\x04 \x01(\t\"X\n\x12KonfirmasiResponse\x12\x0e\n\x06sukses\x18\x01 \x01(\x08\x12\r\n\x05pesan\x18\x02 \x01(\t\x12\x11\n\tjadwal_id\x18\x03 \x01(\t\x12\x10\n\x08kursi_id\x18\x04 \x01(\t2\x8d\x04\n\rLayananWartix\x12\x43\n\nPesanKursi\x12\x19.wartix.PesanKursiRequest\x1a\x1a.wartix.PesanKursiResponse\x12@\n\x0fGetJadwalStudio\x12\x15.wartix.JadwalRequest\x1a\x16.wartix.JadwalResponse\x12\x43\n\x0eGetStatusKursi\x12\x14.wartix.KursiRequest\x1a\x1b.wartix.KursiStatusResponse\x12H\n\x14KonfirmasiPembayaran\x12\x14.wartix.BayarRequest\x1a\x1a.wartix.KonfirmasiResponse\x12\x45\n\x0c\x44\x61\x66tarJadwal\x12\x1b.wartix.DaftarJadwalRequest\x1a\x16.wartix.JadwalResponse0\x01\x12I\n\x0c\x42\x61talPesanan\x12\x1b.wartix.BatalPesananRequest\x1a\x1c.wartix.BatalPesananResponse\x12T\n\x11StreamStatusKursi\x12 .wartix.StreamStatusKursiRequest\x1a\x1b.wartix.KursiStatusResponse0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,24 +33,30 @@ if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_DAFTARJADWALREQUEST']._serialized_start=24
   _globals['_DAFTARJADWALREQUEST']._serialized_end=45
-  _globals['_PESANKURSIREQUEST']._serialized_start=47
-  _globals['_PESANKURSIREQUEST']._serialized_end=140
-  _globals['_PESANKURSIRESPONSE']._serialized_start=142
-  _globals['_PESANKURSIRESPONSE']._serialized_end=250
-  _globals['_JADWALREQUEST']._serialized_start=252
-  _globals['_JADWALREQUEST']._serialized_end=286
-  _globals['_KURSIINFO']._serialized_start=288
-  _globals['_KURSIINFO']._serialized_end=370
-  _globals['_JADWALRESPONSE']._serialized_start=373
-  _globals['_JADWALRESPONSE']._serialized_end=545
-  _globals['_KURSIREQUEST']._serialized_start=547
-  _globals['_KURSIREQUEST']._serialized_end=598
-  _globals['_KURSISTATUSRESPONSE']._serialized_start=600
-  _globals['_KURSISTATUSRESPONSE']._serialized_end=711
-  _globals['_BAYARREQUEST']._serialized_start=713
-  _globals['_BAYARREQUEST']._serialized_end=801
-  _globals['_KONFIRMASIRESPONSE']._serialized_start=803
-  _globals['_KONFIRMASIRESPONSE']._serialized_end=891
-  _globals['_LAYANANWARTIX']._serialized_start=894
-  _globals['_LAYANANWARTIX']._serialized_end=1258
+  _globals['_BATALPESANANREQUEST']._serialized_start=47
+  _globals['_BATALPESANANREQUEST']._serialized_end=142
+  _globals['_BATALPESANANRESPONSE']._serialized_start=144
+  _globals['_BATALPESANANRESPONSE']._serialized_end=234
+  _globals['_STREAMSTATUSKURSIREQUEST']._serialized_start=236
+  _globals['_STREAMSTATUSKURSIREQUEST']._serialized_end=299
+  _globals['_PESANKURSIREQUEST']._serialized_start=301
+  _globals['_PESANKURSIREQUEST']._serialized_end=394
+  _globals['_PESANKURSIRESPONSE']._serialized_start=396
+  _globals['_PESANKURSIRESPONSE']._serialized_end=504
+  _globals['_JADWALREQUEST']._serialized_start=506
+  _globals['_JADWALREQUEST']._serialized_end=540
+  _globals['_KURSIINFO']._serialized_start=542
+  _globals['_KURSIINFO']._serialized_end=624
+  _globals['_JADWALRESPONSE']._serialized_start=627
+  _globals['_JADWALRESPONSE']._serialized_end=799
+  _globals['_KURSIREQUEST']._serialized_start=801
+  _globals['_KURSIREQUEST']._serialized_end=852
+  _globals['_KURSISTATUSRESPONSE']._serialized_start=854
+  _globals['_KURSISTATUSRESPONSE']._serialized_end=965
+  _globals['_BAYARREQUEST']._serialized_start=967
+  _globals['_BAYARREQUEST']._serialized_end=1055
+  _globals['_KONFIRMASIRESPONSE']._serialized_start=1057
+  _globals['_KONFIRMASIRESPONSE']._serialized_end=1145
+  _globals['_LAYANANWARTIX']._serialized_start=1148
+  _globals['_LAYANANWARTIX']._serialized_end=1673
 # @@protoc_insertion_point(module_scope)

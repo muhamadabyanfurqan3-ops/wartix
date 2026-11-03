@@ -274,6 +274,37 @@ class StudioStore:
 
         return False, f"Kursi {k_norm} pada jadwal {j_norm} belum dipesan (status: AVAILABLE)"
 
+    def cancel_hold(self, jadwal_id: str, kursi_id: str, user_id: str) -> Tuple[bool, str]:
+        """Melepas hold yang masih aktif dan dimiliki user peminta."""
+        j_norm = jadwal_id.strip()
+        k_norm = kursi_id.upper().strip()
+        j_data = self.jadwal.get(j_norm)
+        if j_data is None:
+            return False, f"Jadwal '{jadwal_id}' tidak ditemukan"
+
+        seat = j_data["seats"].get(k_norm)
+        if seat is None:
+            return False, f"Kursi '{kursi_id}' tidak ditemukan pada jadwal {j_norm}"
+
+        # Bersihkan hold kedaluwarsa sebelum memvalidasi kepemilikan/status.
+        if seat["status"] == "PENDING_PAYMENT":
+            held_until = seat.get("held_until")
+            if held_until is not None and held_until <= time.time():
+                seat["status"] = "AVAILABLE"
+                seat["user_id"] = None
+                seat["held_until"] = None
+                return False, f"Hold kursi {k_norm} telah kedaluwarsa"
+
+        if seat["status"] != "PENDING_PAYMENT":
+            return False, f"Kursi {k_norm} tidak memiliki hold aktif"
+        if seat["user_id"] != user_id:
+            return False, "Pembatalan ditolak: user_id tidak sesuai dengan pemesan awal"
+
+        seat["status"] = "AVAILABLE"
+        seat["user_id"] = None
+        seat["held_until"] = None
+        return True, f"Hold kursi {k_norm} pada jadwal {j_norm} berhasil dibatalkan"
+
     def reset(self) -> None:
         """
         Mereset seluruh jadwal dan status kursi kembali ke kondisi awal.
