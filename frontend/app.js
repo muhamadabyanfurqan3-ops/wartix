@@ -25,6 +25,42 @@ const dialogFeedback = document.querySelector('#dialog-feedback');
 const customerName = document.querySelector('#customer-name');
 const confirmBookingButton = document.querySelector('#confirm-booking-button');
 
+// randomUUID is restricted to secure contexts in browsers. The demo is served
+// over HTTP on a LAN IP, so generate a UUID using getRandomValues as fallback.
+function createRequestId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  // Compatibility fallback for browsers without Web Crypto support.
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function readStoredUser() {
+  try {
+    return JSON.parse(globalThis.sessionStorage?.getItem('wartix-user') || 'null');
+  } catch {
+    // Pemesanan tetap dapat dilakukan jika browser membatasi Web Storage.
+    return null;
+  }
+}
+
+function storeUser(user) {
+  try {
+    globalThis.sessionStorage?.setItem('wartix-user', JSON.stringify(user));
+  } catch {
+    // Identitas cukup disimpan di memori untuk sesi halaman ini.
+  }
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     cache: 'no-store',
@@ -194,7 +230,7 @@ async function cancelHold(seatId) {
     const result = await api('/api/cancel', {
       method: 'POST',
       body: JSON.stringify({
-        request_id: crypto.randomUUID(),
+        request_id: createRequestId(),
         jadwal_id: state.schedule.jadwal_id,
         kursi_id: seatId,
         user_id: state.user.id,
@@ -250,9 +286,9 @@ async function submitBooking() {
 
   const user = state.user?.name === name
     ? state.user
-    : { id: `web-${crypto.randomUUID()}`, name };
+    : { id: `web-${createRequestId()}`, name };
   state.user = user;
-  sessionStorage.setItem('wartix-user', JSON.stringify(user));
+  storeUser(user);
 
   const schedule = state.schedule;
   const selected = [...state.selectedSeats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
@@ -265,7 +301,7 @@ async function submitBooking() {
       const result = await api('/api/book', {
         method: 'POST',
         body: JSON.stringify({
-          request_id: crypto.randomUUID(),
+          request_id: createRequestId(),
           jadwal_id: schedule.jadwal_id,
           kursi_id: seatId,
           user_id: user.id,
@@ -314,9 +350,16 @@ seatMap.addEventListener('click', (event) => {
 });
 
 bookingButton.addEventListener('click', openBookingDialog);
-confirmBookingButton.addEventListener('click', () => {
+confirmBookingButton.addEventListener('click', async () => {
   if (confirmBookingButton.dataset.done === 'true') bookingDialog.close();
-  else submitBooking();
+  else {
+    try {
+      await submitBooking();
+    } catch (error) {
+      confirmBookingButton.disabled = false;
+      dialogFeedback.textContent = `Pemesanan gagal: ${error.message}`;
+    }
+  }
 });
 
 const menuToggle = document.querySelector('.menu-toggle');
@@ -335,11 +378,7 @@ mainNav.addEventListener('click', (event) => {
   }
 });
 
-try {
-  state.user = JSON.parse(sessionStorage.getItem('wartix-user') || 'null');
-} catch {
-  state.user = null;
-}
+state.user = readStoredUser();
 
 renderSeats();
 loadSchedules();
