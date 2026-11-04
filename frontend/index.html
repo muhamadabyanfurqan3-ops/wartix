@@ -7,8 +7,8 @@
     <meta name="description" content="Pilih film, jadwal, dan kursi bioskop bersama Wartix." />
     <title>Wartix - Pesan Tiket Bioskop</title>
     <link rel="icon" type="image/png" href="assets/favicon.png" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js" defer></script>
+    <link rel="stylesheet" href="styles.css?v=payment-flow-20261104" />
+    <script src="app.js?v=payment-flow-20261104" defer></script>
   </head>
   <body>
     <header class="site-header" id="beranda">
@@ -75,8 +75,13 @@
             <div class="seat-map" id="seat-map" aria-label="Denah kursi bioskop"></div>
             <div class="seat-summary">
               <div><span class="summary-label">KURSI DIPILIH</span><strong id="seat-summary-text">Belum ada</strong></div>
-              <button class="button button-red" id="booking-button" type="button" disabled>Lanjutkan <span aria-hidden="true">→</span></button>
+              <div class="seat-summary-actions">
+                <button class="button button-red" id="booking-button" type="button" disabled>Lanjutkan <span aria-hidden="true">→</span></button>
+                <button class="button button-pay" id="payment-button" type="button" hidden>Konfirmasi pembayaran</button>
+              </div>
             </div>
+            <p class="payment-note" id="payment-note" hidden>Hold berlaku dua menit. Konfirmasi pembayaran pada demo akan mengubah kursi menjadi terjual; tidak ada uang sungguhan yang diproses.</p>
+            <p class="payment-feedback" id="payment-feedback" role="status" aria-live="polite" hidden></p>
           </div>
         </div>
       </section>
@@ -118,6 +123,44 @@
       <div class="dialog-actions">
         <form method="dialog"><button class="button button-quiet">Kembali</button></form>
         <button class="button button-red" id="confirm-booking-button" type="button">Pesan kursi <span aria-hidden="true">→</span></button>
+      </div>
+    </dialog>
+
+    <dialog class="receipt-dialog" id="receipt-dialog" aria-labelledby="receipt-title">
+      <article class="receipt-paper">
+        <button class="dialog-close receipt-close" id="receipt-close-button" type="button" aria-label="Tutup receipt">×</button>
+        <header class="receipt-header">
+          <img src="wartix-logo.png" alt="Logo Wartix" />
+          <h2 id="receipt-title">RECEPIT</h2>
+          <p>BUKTI KONFIRMASI TIKET</p>
+        </header>
+        <p class="receipt-success">PEMBAYARAN BERHASIL</p>
+        <div class="receipt-rule"></div>
+        <dl class="receipt-meta">
+          <div><dt>PEMESAN</dt><dd id="receipt-customer"></dd></div>
+          <div><dt>TANGGAL</dt><dd id="receipt-date"></dd></div>
+          <div><dt>KODE PESANAN</dt><dd id="receipt-code"></dd></div>
+        </dl>
+        <div class="receipt-rule receipt-rule-dashed"></div>
+        <div class="receipt-film">
+          <span>FILM</span><strong id="receipt-film-name"></strong>
+        </div>
+        <div class="receipt-film-details">
+          <span id="receipt-showtime"></span>
+          <span id="receipt-studio"></span>
+        </div>
+        <div class="receipt-items-heading"><span>QTY</span><span>KURSI</span><span>STATUS</span></div>
+        <div class="receipt-rule receipt-rule-dashed"></div>
+        <ol class="receipt-seat-list" id="receipt-seat-list"></ol>
+        <div class="receipt-rule"></div>
+        <div class="receipt-total"><span>JUMLAH TIKET</span><strong id="receipt-quantity"></strong></div>
+        <div class="receipt-paid">STATUS: LUNAS · SIMULASI</div>
+        <p class="receipt-thanks">TERIMA KASIH TELAH MEMESAN DI WARTIX</p>
+        <p class="receipt-footnote">Simpan receipt ini sebagai bukti konfirmasi pemesanan.</p>
+      </article>
+      <div class="receipt-actions">
+        <button class="button button-quiet" id="receipt-close-action" type="button">Tutup</button>
+        <button class="button button-red" id="receipt-print-button" type="button">Cetak receipt</button>
       </div>
     </dialog>
   </body>

@@ -17,6 +17,9 @@ const movieGrid = document.querySelector('#movie-grid');
 const seatMap = document.querySelector('#seat-map');
 const seatSummary = document.querySelector('#seat-summary-text');
 const bookingButton = document.querySelector('#booking-button');
+const paymentButton = document.querySelector('#payment-button');
+const paymentNote = document.querySelector('#payment-note');
+const paymentFeedback = document.querySelector('#payment-feedback');
 const selectedShowCopy = document.querySelector('#selected-show-copy');
 const connectionStatus = document.querySelector('#connection-status');
 const bookingDialog = document.querySelector('#booking-dialog');
@@ -24,6 +27,7 @@ const dialogCopy = document.querySelector('#dialog-copy');
 const dialogFeedback = document.querySelector('#dialog-feedback');
 const customerName = document.querySelector('#customer-name');
 const confirmBookingButton = document.querySelector('#confirm-booking-button');
+const receiptDialog = document.querySelector('#receipt-dialog');
 
 // randomUUID is restricted to secure contexts in browsers. The demo is served
 // over HTTP on a LAN IP, so generate a UUID using getRandomValues as fallback.
@@ -125,6 +129,9 @@ function renderSeats() {
     seatMap.innerHTML = '<p class="seat-empty">Denah kursi akan dimuat dari server setelah jadwal dipilih.</p>';
     seatSummary.textContent = 'Belum ada';
     bookingButton.disabled = true;
+    paymentButton.hidden = true;
+    paymentNote.hidden = true;
+    paymentFeedback.hidden = true;
     return;
   }
 
@@ -150,6 +157,15 @@ function renderSeats() {
   const selected = [...state.selectedSeats].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
   seatSummary.textContent = selected.length ? selected.join(', ') : 'Belum ada';
   bookingButton.disabled = selected.length === 0;
+  const ownedHolds = schedule.kursi.filter((seat) =>
+    seat.status === 'PENDING_PAYMENT' && seat.user_id === state.user?.id
+  );
+  paymentButton.hidden = ownedHolds.length === 0;
+  paymentButton.disabled = false;
+  paymentButton.textContent = ownedHolds.length > 1
+    ? `Konfirmasi pembayaran ${ownedHolds.length} kursi`
+    : 'Konfirmasi pembayaran';
+  paymentNote.hidden = ownedHolds.length === 0;
 }
 
 async function loadSchedules() {
@@ -166,6 +182,8 @@ async function loadSchedules() {
 
 async function chooseSchedule(scheduleId) {
   closeAllStatusStreams();
+  paymentFeedback.textContent = '';
+  paymentFeedback.hidden = true;
   state.selectedScheduleId = scheduleId;
   state.selectedSeats.clear();
   state.schedule = null;
@@ -332,6 +350,99 @@ async function submitBooking() {
   confirmBookingButton.textContent = 'Selesai';
 }
 
+function showReceipt(schedule, seatIds, orderCode) {
+  const paidAt = new Date();
+  document.querySelector('#receipt-customer').textContent = state.user?.name || 'Pemesan Wartix';
+  document.querySelector('#receipt-date').textContent = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(paidAt);
+  document.querySelector('#receipt-code').textContent = orderCode;
+  document.querySelector('#receipt-film-name').textContent = schedule.nama_film;
+  document.querySelector('#receipt-showtime').textContent = schedule.jam_tayang.slice(0, 5);
+  document.querySelector('#receipt-studio').textContent = schedule.studio_id;
+  document.querySelector('#receipt-quantity').textContent = `${seatIds.length} tiket`;
+
+  const itemList = document.querySelector('#receipt-seat-list');
+  itemList.replaceChildren();
+  for (const [index, seatId] of seatIds.entries()) {
+    const row = document.createElement('li');
+    for (const value of [String(index + 1).padStart(2, '0'), seatId, 'TERJUAL']) {
+      const cell = document.createElement('span');
+      cell.textContent = value;
+      row.appendChild(cell);
+    }
+    itemList.appendChild(row);
+  }
+  receiptDialog.showModal();
+}
+
+async function confirmHeldSeats() {
+  if (!state.selectedScheduleId || !state.user?.id) return;
+
+  paymentButton.disabled = true;
+  paymentFeedback.hidden = false;
+  paymentFeedback.textContent = 'Memeriksa status hold terbaru di server…';
+  try {
+    await refreshSelectedSchedule();
+  } catch (error) {
+    paymentButton.disabled = false;
+    paymentFeedback.textContent = `Status kursi tidak dapat diperiksa: ${error.message}`;
+    return;
+  }
+
+  const schedule = state.schedule;
+  const heldSeats = schedule?.kursi
+    .filter((seat) => seat.status === 'PENDING_PAYMENT' && seat.user_id === state.user.id)
+    .map((seat) => seat.kursi_id)
+    .sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
+  if (!heldSeats.length) {
+    paymentFeedback.textContent = 'Hold sudah kedaluwarsa atau tidak lagi aktif. Pilih kursi yang tersedia lalu pesan kembali.';
+    notify('Hold kursi sudah tidak aktif. Silakan pesan kembali.', true);
+    return;
+  }
+
+  paymentButton.textContent = 'Mengonfirmasi pembayaran…';
+  paymentFeedback.textContent = 'Mengirim konfirmasi pembayaran ke server…';
+  const confirmedSeats = [];
+  const failedSeats = [];
+  const orderCode = `WTX-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${createRequestId().slice(0, 8).toUpperCase()}`;
+
+  for (const seatId of heldSeats) {
+    try {
+      await api('/api/confirm', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_id: createRequestId(),
+          jadwal_id: schedule.jadwal_id,
+          kursi_id: seatId,
+          user_id: state.user.id,
+        }),
+      });
+      confirmedSeats.push(seatId);
+    } catch (error) {
+      failedSeats.push(`${seatId}: ${error.message}`);
+    }
+  }
+
+  try {
+    await refreshSelectedSchedule();
+  } catch (error) {
+    console.error('Gagal menyegarkan status kursi setelah pembayaran:', error);
+  }
+
+  if (confirmedSeats.length) {
+    paymentFeedback.textContent = `Pembayaran berhasil. Kursi ${confirmedSeats.join(', ')} sekarang berstatus terjual.`;
+    showReceipt(schedule, confirmedSeats, orderCode);
+  }
+  if (failedSeats.length) {
+    paymentFeedback.textContent = `Tidak semua kursi berhasil dikonfirmasi: ${failedSeats.join('; ')}.`;
+    notify(`Pembayaran gagal untuk ${failedSeats.join('; ')}. Periksa status kursi dan coba lagi.`, true);
+  } else if (!confirmedSeats.length) {
+    paymentFeedback.textContent = 'Pembayaran tidak berhasil. Hold mungkin sudah kedaluwarsa.';
+    notify('Pembayaran tidak berhasil. Hold mungkin sudah kedaluwarsa.', true);
+  }
+}
+
 movieGrid.addEventListener('click', (event) => {
   const retry = event.target.closest('#retry-catalog');
   if (retry) {
@@ -350,6 +461,19 @@ seatMap.addEventListener('click', (event) => {
 });
 
 bookingButton.addEventListener('click', openBookingDialog);
+paymentButton.addEventListener('click', async () => {
+  try {
+    await confirmHeldSeats();
+  } catch (error) {
+    paymentButton.disabled = false;
+    paymentFeedback.hidden = false;
+    paymentFeedback.textContent = `Konfirmasi pembayaran gagal: ${error.message}`;
+    notify(`Konfirmasi pembayaran gagal: ${error.message}`, true);
+  }
+});
+document.querySelector('#receipt-close-button').addEventListener('click', () => receiptDialog.close());
+document.querySelector('#receipt-close-action').addEventListener('click', () => receiptDialog.close());
+document.querySelector('#receipt-print-button').addEventListener('click', () => window.print());
 confirmBookingButton.addEventListener('click', async () => {
   if (confirmBookingButton.dataset.done === 'true') bookingDialog.close();
   else {
